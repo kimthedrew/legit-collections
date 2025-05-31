@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeForm, AddToCartForm
 import os
 import re
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -26,9 +27,15 @@ def create_app():
     # Configure application
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    
+    # Get database URL and handle PostgreSQL compatibility
+    database_url = os.getenv('DATABASE_URL')
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY', 'your-secret-key-here'),
-        SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///site.db'),
+        SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///site.db',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         UPLOAD_FOLDER=os.getenv('UPLOAD_FOLDER', 'static/uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB
@@ -45,6 +52,11 @@ def create_app():
     cache.init_app(app)
     
     login_manager.login_view = 'login'
+
+    # Configure logging
+    if app.config.get('ENV') == 'production':
+        logging.basicConfig(level=logging.INFO)
+        app.logger.addHandler(logging.StreamHandler())
 
     return app
 
@@ -161,7 +173,7 @@ def add_shoe():
                 filename = secure_filename(file.filename)
                 save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(save_path)
-                image_url = url_for('static', filename=f'uploads/{filename}')
+                image_url = url_for('static', filename=f'uploads/{filename}', _external=True)
             elif form.image_url.data:
                 image_url = form.image_url.data
             else:
@@ -250,7 +262,7 @@ def update_shoe(shoe_id):
                 filename = secure_filename(file.filename)
                 save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(save_path)
-                shoe.image_url = url_for('static', filename=f'uploads/{filename}')
+                shoe.image_url = url_for('static', filename=f'uploads/{filename}', _external=True)
             elif form.image_url.data:
                 shoe.image_url = form.image_url.data
             
@@ -331,41 +343,6 @@ def add_to_cart(shoe_id):
     flash('Item added to cart', 'success')
     return redirect(url_for('index'))
 
-
-# @app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
-# @login_required
-# def add_to_cart(shoe_id):
-#     shoe = Shoe.query.get_or_404(shoe_id)
-#     form = AddToCartForm()
-    
-#     # Populate size choices from available sizes
-#     form.size.choices = [(s.size, f"{s.size} ({s.quantity} left)") 
-#                          for s in shoe.sizes if s.quantity > 0]
-    
-#     if form.validate_on_submit():
-#         selected_size = form.size.data
-        
-#         # Find the size inventory
-#         size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
-        
-#         if not size_inv or size_inv.quantity < 1:
-#             flash('This size is currently out of stock', 'danger')
-#             return redirect(url_for('index'))
-        
-#         cart = session.get('cart', [])
-        
-#         # Store as dictionary with shoe_id and size
-#         cart.append({
-#             'shoe_id': shoe_id,
-#             'size': selected_size
-#         })
-        
-#         session['cart'] = cart
-#         flash('Item added to cart', 'success')
-#     else:
-#         flash('Please select a valid size', 'danger')
-        
-#     return redirect(url_for('index'))
 
 @app.route('/remove_from_cart/<int:index>', methods=['POST'])
 @login_required
@@ -517,19 +494,6 @@ def search():
     ).paginate(page=page, per_page=9)
     
     return render_template('search.html', results=results, query=query)
-# In your Flask app
-# @app.route('/search')
-# def search():
-#     query = request.args.get('q', '')
-#     # Basic search implementation - you'll need to modify for your actual database
-#     results = Shoe.query.filter(
-#         Shoe.name.ilike(f'%{query}%') | 
-#         Shoe.description.ilike(f'%{query}%') |
-#         Shoe.category.ilike(f'%{query}%')
-#     ).paginate(page=request.args.get('page', 1, type=int), per_page=12)
-    
-#     return render_template('index.html', shoes=results)
-
 
 @app.route('/migrate_cart')
 @login_required
@@ -558,5 +522,17 @@ def format_float(value, decimals=2):
 
 if __name__ == '__main__':
     with app.app_context():
+        # Create database tables if they don't exist
         db.create_all()
-    app.run(debug=True)
+    
+    # Determine if we're in production
+    is_production = os.getenv('ENV') == 'production'
+    
+    # Run the app
+    if is_production:
+        # For production, use a production WSGI server
+        from waitress import serve
+        serve(app, host="0.0.0.0", port=8080)
+    else:
+        # For development, use Flask's built-in server
+        app.run(debug=True)

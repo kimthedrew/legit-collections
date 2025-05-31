@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: legit-collections
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: legitdb
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
