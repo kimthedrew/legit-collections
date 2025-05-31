@@ -1,0 +1,11 @@
+flask
+flask_sqlalchemy
+flask_login
+flask-bcrypt
+flask_wtf
+flask_caching
+flask_migrate
+python-dotenv
+pillow
+flask_login
+flask_wtf

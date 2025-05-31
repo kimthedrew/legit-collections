@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .navbar {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        }
+        .sidebar {
+            background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: 600;
+        }
+        .badge-verified {
+            background-color: #198754;
+        }
+        .badge-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .product-image {
+            max-height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .admin-header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .section-title {
+            border-left: 4px solid #0d6efd;
+            padding-left: 15px;
+            margin-bottom: 25px;
+        }
+        .btn-action {
+            min-width: 100px;
+        }
+        .alert {
+            border-radius: 8px;
+        }
+        .size-badge {
+            font-size: 0.85rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-shop"></i> ShoeStore Admin
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="adminNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house-door"></i> View Store
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-2 d-none d-lg-block sidebar p-0">
+                <div class="p-4">
+                    <div class="text-center mb-5">
+                        <div class="mb-3">
+                            <i class="bi bi-person-circle" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5>{{ current_user.name }}</h5>
+                        <p class="text-muted">Administrator</p>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#">
+                                <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#addProduct">
+                                <i class="bi bi-plus-circle me-2"></i> Add Product
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#manageProducts">
+                                <i class="bi bi-box-seam me-2"></i> Manage Products
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#orders">
+                                <i class="bi bi-receipt me-2"></i> Order Management
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link" href="#">
+                                <i class="bi bi-people me-2"></i> Users
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="bi bi-graph-up me-2"></i> Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="bi bi-gear me-2"></i> Settings
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-10 p-4">
+                <div class="admin-header">
+                    <h2><i class="bi bi-speedometer2 me-2"></i> Admin Dashboard</h2>
+                    <p class="text-muted">Manage your store products, orders, and settings</p>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Add New Shoe Section -->
+                <div class="card mb-5 shadow" id="addProduct">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="card-title mb-0"><i class="bi bi-plus-circle me-2"></i> Add New Product</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('add_shoe') }}" enctype="multipart/form-data">
+                            {{ form.hidden_tag() }}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        {{ form.name.label(class="form-label") }}
+                                        {{ form.name(class="form-control", placeholder="Enter product name") }}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        {{ form.price.label(class="form-label") }}
+                                        <div class="input-group">
+                                            <span class="input-group-text">ksh</span>
+                                            {{ form.price(class="form-control", placeholder="0.00") }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        {{ form.category.label(class="form-label") }}
+                                        {{ form.category(class="form-control", placeholder="Sneakers") }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        {{ form.image.label(class="form-label") }}
+                                        {{ form.image(class="form-control") }}
+                                        <div class="form-text">Upload an image file (JPG, PNG, GIF)</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        {{ form.image_url.label(class="form-label") }}
+                                        {{ form.image_url(class="form-control", placeholder="https://example.com/image.jpg") }}
+                                        <div class="form-text">Or provide an image URL</div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        {{ form.description.label(class="form-label") }}
+                                        {{ form.description(class="form-control", rows=3, placeholder="Enter product description") }}
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-plus-circle"></i> Add Product
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Manage Existing Products -->
+                <div class="card mb-5 shadow" id="manageProducts">
+                    <div class="card-header bg-info text-white">
+                        <h4 class="card-title mb-0"><i class="bi bi-box-seam me-2"></i> Manage Existing Products</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if shoes %}
+                            <div class="row">
+                                {% for shoe in shoes %}
+                                <div class="col-md-6 mb-4">
+                                    <div class="card shadow-sm h-100">
+                                        <div class="card-body">
+                                            <div class="text-center mb-3">
+                                                <img src="{{ shoe.image_url }}" class="product-image img-fluid rounded">
+                                            </div>
+                                            
+                                            <h5>{{ shoe.name }}</h5>
+                                            <p class="text-muted">{{ shoe.category }}</p>
+                                            
+                                            <div class="mb-3">
+                                                <strong>Sizes & Stock:</strong>
+                                                <div class="d-flex flex-wrap mt-2">
+                                                    {% for size in shoe.sizes %}
+                                                    <span class="badge bg-primary size-badge">
+                                                        {{ size.size }}: {{ size.quantity }}
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-muted">No sizes added</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ url_for('manage_shoe_sizes', shoe_id=shoe.id) }}" 
+                                                   class="btn btn-warning btn-action">
+                                                    <i class="bi bi-plus-circle"></i> Manage Sizes
+                                                </a>
+                                                <form method="POST" action="{{ url_for('delete_shoe', shoe_id=shoe.id) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-danger btn-action" 
+                                                        onclick="return confirm('Permanently delete this product?')">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-box" style="font-size: 3rem; color: #6c757d;"></i>
+                                <h4 class="mt-3">No Products Found</h4>
+                                <p>Add your first product using the form above</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Order Management Section -->
+                <div class="card shadow" id="orders">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="card-title mb-0"><i class="bi bi-receipt me-2"></i> Order Management</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if orders %}
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Order ID</th>
+                                            <th>Customer</th>
+                                            <th>Phone</th>
+                                            <th>Product</th>
+                                            <th>Size</th>
+                                            <th>Amount</th>
+                                            <th>Payment Code</th>
+                                            <th>Verification</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr>
+                                            <td>#{{ order.id }}</td>
+                                            <td>{{ order.user.name }}</td>
+                                            <td>
+                                                {% if order.phone_number %}
+                                                    {{ order.phone_number }}
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ order.shoe.name }}</td>
+                                            <td>{{ order.size }}</td>
+                                            <td>ksh{{ order.shoe.price|round(2) }}</td>
+                                            <td><code>{{ order.payment_code }}</code></td>
+                                            <td>
+                                                <form method="POST" action="{{ url_for('verify_payment', order_id=order.id) }}">
+                                                    {{ form.hidden_tag() }}
+                                                    <div class="input-group">
+                                                        <input type="text" class="form-control" name="admin_code" 
+                                                            placeholder="Enter code" required>
+                                                        <button type="submit" class="btn btn-sm btn-success">
+                                                            <i class="bi bi-check-circle"></i> Verify
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </td>
+                                            <td>
+                                                {% if order.status == 'Verified' %}
+                                                    <span class="badge bg-success">Verified</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-cart" style="font-size: 3rem; color: #6c757d;"></i>
+                                <h4 class="mt-3">No Orders Found</h4>
+                                <p>All orders will appear here when customers make purchases</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>ShoeStore Admin</h5>
+                    <p>Manage your online store with ease and efficiency</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <p>&copy; 2023 ShoeStore. All rights reserved.</p>
+                    <p>Admin Dashboard v2.0</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Automatically hide alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    new bootstrap.Alert(alert).close();
+                });
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegitCollections - {% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="bi bi-shop"></i> LegitCollections
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('search') }}">Browse</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#!"><i class="bi bi-tag"></i> Sale</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{{ url_for('view_cart') }}">
+                                <i class="bi bi-cart3"></i>
+                                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle">
+                                    {{ session.cart|length if session.cart else 0 }}
+                                </span>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" 
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person"></i> Account
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('user_orders') }}">My Orders</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% if current_user.is_admin %}
+                                <li><a class="dropdown-item text-warning" href="{{ url_for('admin') }}">
+                                    <i class="bi bi-shield-lock"></i> Admin Panel
+                                </a></li>
+                                {% endif %}
+                                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}">Register</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow-1 my-4">
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white mt-auto py-4">
+        <div class="container text-center">
+            <div class="mb-3">
+                <button class="btn btn-outline-light btn-sm" id="theme-toggle">
+                    <i class="bi bi-moon-stars"></i> Toggle Theme
+                </button>
+            </div>
+            <div class="social-links mb-3">
+                <a href="https://www.instagram.com/legitcollectionske" class="text-white mx-2"><i class="bi bi-instagram"></i></a>
+                <a href="#" class="text-white mx-2"><i class="bi bi-twitter-x"></i></a>
+                <a href="#" class="text-white mx-2"><i class="bi bi-facebook"></i></a>
+            </div>
+            <p class="mb-0">&copy; 2025 LegitCollections. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Dark mode toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', currentTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.innerHTML = newTheme === 'dark' 
+                ? '<i class="bi bi-sun"></i> Light Mode' 
+                : '<i class="bi bi-moon-stars"></i> Dark Mode';
+        });
+    </script>
+
+<a href="https://wa.me/254113690898?text=Hi%20Legit%20Collections" 
+class="whatsapp-chat-button" 
+target="_blank"
+aria-label="Chat with us on WhatsApp">
+
+<i class="bi bi-whatsapp"></i>
+</a>
+</body>
+</html>

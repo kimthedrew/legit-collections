@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage Sizes for: {{ shoe.name }}</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">Add New Size</div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            {{ form.size.label(class="form-label") }}
+                            {{ form.size(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            {{ form.quantity.label(class="form-label") }}
+                            {{ form.quantity(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3 pt-4">
+                            <button type="submit" class="btn btn-primary">Add Size</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">Existing Sizes</div>
+        <div class="card-body">
+            {% if shoe.sizes %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Size</th>
+                        <th>Quantity</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for size in shoe.sizes %}
+                    <tr>
+                        <td>{{ size.size }}</td>
+                        <td>{{ size.quantity }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('delete_size', size_id=size.id) }}">
+                                <button type="submit" class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Delete this size?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-center">No sizes added yet</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('admin') }}" class="btn btn-secondary">
+            Back to Admin
+        </a>
+    </div>
+</div>
+{% endblock %}

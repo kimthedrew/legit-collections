@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-sm-5">
+                    <div class="text-center mb-4">
+                        <h2 class="mb-3">Create Account</h2>
+                        <p class="text-muted">Join our sneaker community</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('register') }}">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Name Input -->
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), 
+                                   placeholder="Your full name") }}
+                            </div>
+                            {% for error in form.name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Email Input -->
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), 
+                                   placeholder="example@email.com") }}
+                            </div>
+                            {% for error in form.email.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Password Input -->
+                        <div class="mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), 
+                                   placeholder="At least 6 characters") }}
+                            </div>
+                            {% for error in form.password.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Address Input -->
+                        <div class="mb-4">
+                            {{ form.address.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-geo-alt"></i>
+                                </span>
+                                {{ form.address(class="form-control", 
+                                   placeholder="Delivery address eg. Nairobi, Ngara") }}
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Create Account
+                            </button>
+                        </div>
+
+                        <!-- Terms and Login Link -->
+                        <div class="text-center small">
+                            <p class="text-muted">
+                                By creating an account, you agree to our 
+                                <a href="#!" class="text-decoration-none">Terms</a>
+                            </p>
+                            <p class="mb-0">
+                                Already have an account?
+                                <a href="{{ url_for('login') }}" class="text-decoration-none">
+                                    Sign In
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

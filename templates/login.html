@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h2 class="mb-3">Welcome Back</h2>
+                        <p class="text-muted">Sign in to continue</p>
+                        <!-- Admin Login Notice -->
+                        <div class="alert alert-warning small py-2 mt-3">
+                            <i class="bi bi-shield-lock"></i> Admins use regular credentials
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('login') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Email Input -->
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), 
+                                   placeholder="admin@example.com") }}
+                            </div>
+                            {% for error in form.email.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Password Input -->
+                        <div class="mb-4">
+                            {{ form.password.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), 
+                                   placeholder="Admin password") }}
+                            </div>
+                            {% for error in form.password.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            Sign In
+                        </button>
+
+                        <!-- Admin Support Section -->
+                        <div class="text-center small text-muted mt-4">
+                            <hr>
+                            <p class="mb-1">Admin Support</p>
+                            <a href="mailto:admin@sneakerhub.com" class="text-decoration-none">
+                                <i class="bi bi-envelope-at"></i> Contact System Administrator
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

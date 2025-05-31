@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Your Shopping Cart</h2>
+            
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% if not cart %}
+                <div class="alert alert-info">
+                    Your cart is empty. <a href="{{ url_for('index') }}" class="alert-link">Continue shopping</a>
+                </div>
+            {% else %}
+                <div class="row">
+                    <!-- Cart Items -->
+                    <div class="col-md-8">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                {% for item in cart %}
+                                <div class="row g-3 align-items-center mb-3">
+                                    <div class="col-md-3">
+                                        <img src="{{ item.shoe.image_url }}" 
+                                             class="img-fluid rounded" 
+                                             alt="{{ item.shoe.name }}"
+                                             style="max-height: 100px; object-fit: cover;"
+                                             loading="lazy">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5 class="card-title mb-1">{{ item.shoe.name }}</h5>
+                                        <p class="text-muted mb-1">Price: Ksh{{ item.shoe.price|round(2) }}</p>
+                                        <p class="text-muted mb-0">Size: {{ item.size }}</p>
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <form method="POST" action="{{ url_for('remove_from_cart', index=loop.index0) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-danger btn-sm"
+                                                onclick="return confirm('Remove this item from your cart?')">
+                                                <i class="bi bi-trash"></i> Remove
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Checkout Summary -->
+                    <div class="col-md-4">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">Order Summary</h5>
+                                
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span>Subtotal ({{ cart|length }} items):</span>
+                                    <span class="fw-bold">Ksh{{ total|round(2) }}</span>
+                                </div>
+                                
+                                <!-- Checkout Form -->
+                                <form method="POST" action="{{ url_for('checkout') }}" id="checkout-form">
+                                    {{ form.hidden_tag() }}
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">Payment Details</label>
+
+                                        <div class="alert alert-info mt-2">
+                                            <p class="mb-2">How to pay via M-Pesa:</p>
+                                            <ol class="mb-0">
+                                                <li>Go to M-Pesa on your phone</li>
+                                                <li>Select <strong>Lipa na M-Pesa</strong></li>
+                                                <li>Choose <strong>Pay Bill</strong></li>
+                                                <li>Enter Business Number: <strong>123456</strong></li>
+                                                <li>Account Number: Your Phone Number</li>
+                                                <li>Amount: <strong>Ksh{{ total|round(2) }}</strong></li>
+                                                <li>Complete payment and enter the transaction code below</li>
+                                            </ol>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            {{ form.phone_number.label(class="form-label small text-muted") }}
+                                            {{ form.phone_number(class="form-control" + (' is-invalid' if form.phone_number.errors else ''), 
+                                                placeholder="2547XXXXXXXX") }}
+                                            {% if form.phone_number.errors %}
+                                                <div class="invalid-feedback">
+                                                    {% for error in form.phone_number.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="mb-3">
+                                            {{ form.payment_code.label(class="form-label small text-muted") }}
+                                            {{ form.payment_code(class="form-control" + (' is-invalid' if form.payment_code.errors else ''), 
+                                                placeholder="MPesa Transaction Code") }}
+                                            {% if form.payment_code.errors %}
+                                                <div class="invalid-feedback">
+                                                    {% for error in form.payment_code.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="bi bi-lock"></i> Complete Checkout
+                                            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                        </button>
+                                    </div>
+                                </form>
+                                
+                                <div class="text-center mt-4">
+                                    <a href="{{ url_for('index') }}" class="text-decoration-none">
+                                        <i class="bi bi-arrow-left"></i> Continue Shopping
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkoutForm = document.getElementById('checkout-form');
+        const submitButton = checkoutForm.querySelector('button[type="submit"]');
+        const spinner = submitButton.querySelector('.spinner-border');
+        
+        checkoutForm.addEventListener('submit', function() {
+            submitButton.disabled = true;
+            spinner.classList.remove('d-none');
+        });
+    });
+</script>
+{% endblock %}

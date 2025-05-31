@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h2 class="mb-4">Complete Your Purchase</h2>
+            
+            <div class="row g-4">
+                <!-- Payment Section -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h4 class="card-title mb-3"><i class="bi bi-credit-card"></i> Payment Details</h4>
+                            
+                            <form method="POST" id="checkout-form">
+                                {{ form.hidden_tag() }}
+                                
+                                <div class="mb-3">
+                                    {{ form.phone_number.label(class="form-label") }}
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                        {{ form.phone_number(class="form-control" + (' is-invalid' if form.phone_number.errors else ''), placeholder="07XXXXXXXX") }}
+                                    </div>
+                                    {% for error in form.phone_number.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="mb-4">
+                                    {{ form.payment_code.label(class="form-label") }}
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-receipt"></i></span>
+                                        {{ form.payment_code(class="form-control" + (' is-invalid' if form.payment_code.errors else ''), placeholder="MPESA Transaction Code") }}
+                                    </div>
+                                    {% for error in form.payment_code.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                    <small class="text-muted mt-1 d-block">
+                                        Payment Instructions:
+                                        <ol class="list-unstyled">
+                                            <li>1. Go to M-PESA Menu</li>
+                                            <li>2. Lipa na M-PESA</li>
+                                            <li>3. Buy Goods: 3598608</li>
+                                        
+                                        </ol>
+                                    </small>
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                        Confirm Payment (Ksh{{ "%.2f"|format(total) }})
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h4 class="card-title mb-3"><i class="bi bi-bag-check"></i> Order Summary</h4>
+                            
+                            <div class="list-group mb-3">
+                                {% for shoe in cart %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">{{ shoe.name }}</h6>
+                                            <small class="text-muted">Size: {{ shoe.size }}</small>
+                                        </div>
+                                        <span class="text-nowrap">Ksh{{ "%.2f"|format(shoe.price) }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between fw-bold fs-5">
+                                <span>Total:</span>
+                                <span>Ksh{{ "%.2f"|format(total) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
