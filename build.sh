@@ -1,9 +1,5 @@
-#!/usr/bin/env bash
-# Exit on error
+#!/bin/bash
+# build.sh
 set -o errexit
-
-# Modify this line as needed for your package manager (pip, poetry, etc.)
+pip install --upgrade pip
 pip install -r requirements.txt
-
-# Convert static asset files
-python app.py flask db upgrade
