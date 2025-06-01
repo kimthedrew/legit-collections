@@ -81,9 +81,8 @@
                                             <ol class="mb-0">
                                                 <li>Go to M-Pesa on your phone</li>
                                                 <li>Select <strong>Lipa na M-Pesa</strong></li>
-                                                <li>Choose <strong>Pay Bill</strong></li>
-                                                <li>Enter Business Number: <strong>123456</strong></li>
-                                                <li>Account Number: Your Phone Number</li>
+                                                <li>Choose <strong>Buy Goods</strong></li>
+                                                <li>Enter Till Number: <strong>3598608</strong></li>
                                                 <li>Amount: <strong>Ksh{{ total|round(2) }}</strong></li>
                                                 <li>Complete payment and enter the transaction code below</li>
                                             </ol>
@@ -92,7 +91,7 @@
                                         <div class="mb-3">
                                             {{ form.phone_number.label(class="form-label small text-muted") }}
                                             {{ form.phone_number(class="form-control" + (' is-invalid' if form.phone_number.errors else ''), 
-                                                placeholder="2547XXXXXXXX") }}
+                                                placeholder="07XXXXXXXX") }}
                                             {% if form.phone_number.errors %}
                                                 <div class="invalid-feedback">
                                                     {% for error in form.phone_number.errors %}

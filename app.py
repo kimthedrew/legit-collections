@@ -469,7 +469,7 @@ def checkout():
         
         except Exception as e:
             db.session.rollback()
-            flash(str(e), 'danger')
+            flash(str(e), 'dang2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lWer')
     
     return render_template('checkout.html', form=form, cart=cart_items, total=total)
 
