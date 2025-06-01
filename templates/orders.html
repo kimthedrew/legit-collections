@@ -35,7 +35,7 @@
                                 Placed on {{ order.created_at.strftime('%b %d, %Y %I:%M %p') }}
                             </small>
                         </div>
-                        <span class="h5 text-primary">${{ "%.2f"|format(order.shoe.price) }}</span>
+                        <span class="h5 text-primary">Ksh{{ "%.2f"|format(order.shoe.price) }}</span>
                     </div>
 
                     <div class="row g-3">
