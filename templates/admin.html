@@ -78,6 +78,16 @@
             margin-right: 5px;
             margin-bottom: 5px;
         }
+        .size-manager {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .upload-status {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -189,46 +199,54 @@
                             {{ form.hidden_tag() }}
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <div class="form-group">
-                                        {{ form.name.label(class="form-label") }}
-                                        {{ form.name(class="form-control", placeholder="Enter product name") }}
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Product Name</label>
+                                        <input type="text" class="form-control" id="name" name="name" required>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <div class="form-group">
-                                        {{ form.price.label(class="form-label") }}
+                                    <div class="mb-3">
+                                        <label for="price" class="form-label">Price (Ksh)</label>
                                         <div class="input-group">
-                                            <span class="input-group-text">ksh</span>
-                                            {{ form.price(class="form-control", placeholder="0.00") }}
+                                            <span class="input-group-text">Ksh</span>
+                                            <input type="number" step="0.01" class="form-control" id="price" name="price" required>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <div class="form-group">
-                                        {{ form.category.label(class="form-label") }}
-                                        {{ form.category(class="form-control", placeholder="Sneakers") }}
+                                    <div class="mb-3">
+                                        <label for="category" class="form-label">Category</label>
+                                        <select class="form-select" id="category" name="category">
+                                            <option value="Sneakers">Sneakers</option>
+                                            <option value="Running">Running</option>
+                                            <option value="Casual">Casual</option>
+                                            <option value="Formal">Formal</option>
+                                            <option value="Sports">Sports</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="image" class="form-label">Upload Image</label>
+                                        <input type="file" class="form-control" id="image" name="image">
+                                        <div class="upload-status">JPG, PNG or GIF (Max 16MB)</div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="form-group">
-                                        {{ form.image.label(class="form-label") }}
-                                        {{ form.image(class="form-control") }}
-                                        <div class="form-text">Upload an image file (JPG, PNG, GIF)</div>
+                                    <div class="mb-3">
+                                        <label for="image_url" class="form-label">Or Image URL</label>
+                                        <input type="url" class="form-control" id="image_url" name="image_url" placeholder="https://example.com/image.jpg">
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        {{ form.image_url.label(class="form-label") }}
-                                        {{ form.image_url(class="form-control", placeholder="https://example.com/image.jpg") }}
-                                        <div class="form-text">Or provide an image URL</div>
-                                    </div>
-                                </div>
+                                
                                 <div class="col-12">
-                                    <div class="form-group">
-                                        {{ form.description.label(class="form-label") }}
-                                        {{ form.description(class="form-control", rows=3, placeholder="Enter product description") }}
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Description</label>
+                                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                                     </div>
                                 </div>
+                                
                                 <div class="col-12">
                                     <button type="submit" class="btn btn-success">
                                         <i class="bi bi-plus-circle"></i> Add Product
@@ -257,6 +275,7 @@
                                             
                                             <h5>{{ shoe.name }}</h5>
                                             <p class="text-muted">{{ shoe.category }}</p>
+                                            <p class="mb-2"><strong>Price:</strong> Ksh{{ shoe.price }}</p>
                                             
                                             <div class="mb-3">
                                                 <strong>Sizes & Stock:</strong>
@@ -271,17 +290,94 @@
                                                 </div>
                                             </div>
                                             
-                                            <div class="d-flex gap-2">
+                                            <div class="d-flex gap-2 flex-wrap">
                                                 <a href="{{ url_for('manage_shoe_sizes', shoe_id=shoe.id) }}" 
                                                    class="btn btn-warning btn-action">
                                                     <i class="bi bi-plus-circle"></i> Manage Sizes
                                                 </a>
+                                                
+                                                <button type="button" class="btn btn-primary btn-action" 
+                                                    data-bs-toggle="modal" data-bs-target="#editModal{{ shoe.id }}">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                
                                                 <form method="POST" action="{{ url_for('delete_shoe', shoe_id=shoe.id) }}">
                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <button type="submit" class="btn btn-danger btn-action" 
                                                         onclick="return confirm('Permanently delete this product?')">
                                                         <i class="bi bi-trash"></i> Delete
                                                     </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Edit Modal -->
+                                <div class="modal fade" id="editModal{{ shoe.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title">Edit Product: {{ shoe.name }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form method="POST" action="{{ url_for('update_shoe', shoe_id=shoe.id) }}" enctype="multipart/form-data">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Product Name</label>
+                                                                <input type="text" class="form-control" name="name" value="{{ shoe.name }}" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Price (Ksh)</label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text">Ksh</span>
+                                                                    <input type="number" step="0.01" class="form-control" name="price" value="{{ shoe.price }}" required>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Category</label>
+                                                                <select class="form-select" name="category">
+                                                                    <option value="Sneakers" {% if shoe.category == 'Sneakers' %}selected{% endif %}>Sneakers</option>
+                                                                    <option value="Running" {% if shoe.category == 'Running' %}selected{% endif %}>Running</option>
+                                                                    <option value="Casual" {% if shoe.category == 'Casual' %}selected{% endif %}>Casual</option>
+                                                                    <option value="Formal" {% if shoe.category == 'Formal' %}selected{% endif %}>Formal</option>
+                                                                    <option value="Sports" {% if shoe.category == 'Sports' %}selected{% endif %}>Sports</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Upload New Image</label>
+                                                                <input type="file" class="form-control" name="image">
+                                                                <div class="upload-status">Leave blank to keep current image</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Or New Image URL</label>
+                                                                <input type="url" class="form-control" name="image_url" value="{{ shoe.image_url }}" placeholder="https://example.com/image.jpg">
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="col-12">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Description</label>
+                                                                <textarea class="form-control" name="description" rows="3" required>{{ shoe.description }}</textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">Update Product</button>
+                                                    </div>
                                                 </form>
                                             </div>
                                         </div>
@@ -335,11 +431,11 @@
                                             </td>
                                             <td>{{ order.shoe.name }}</td>
                                             <td>{{ order.size }}</td>
-                                            <td>ksh{{ order.shoe.price|round(2) }}</td>
+                                            <td>Ksh{{ order.shoe.price }}</td>
                                             <td><code>{{ order.payment_code }}</code></td>
                                             <td>
                                                 <form method="POST" action="{{ url_for('verify_payment', order_id=order.id) }}">
-                                                    {{ form.hidden_tag() }}
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                     <div class="input-group">
                                                         <input type="text" class="form-control" name="admin_code" 
                                                             placeholder="Enter code" required>
@@ -401,6 +497,21 @@
                     new bootstrap.Alert(alert).close();
                 });
             }, 5000);
+            
+            // File upload feedback
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            fileInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    const status = this.nextElementSibling;
+                    if (this.files.length > 0) {
+                        status.textContent = `Selected: ${this.files[0].name} (${Math.round(this.files[0].size / 1024)}KB)`;
+                        status.style.color = '#198754';
+                    } else {
+                        status.textContent = 'JPG, PNG or GIF (Max 16MB)';
+                        status.style.color = '#6c757d';
+                    }
+                });
+            });
         });
     </script>
 </body>

@@ -8,9 +8,11 @@ from flask_caching import Cache
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeForm, AddToCartForm
+from b2_helpers import upload_to_b2
 import os
 import re
 import logging
+
 
 # Load environment variables
 load_dotenv()
@@ -23,7 +25,12 @@ cache = Cache()
 
 def create_app():
     app = Flask(__name__)
-    
+
+    app.config['B2_KEY_ID'] = os.getenv('B2_KEY_ID')
+    app.config['B2_APP_KEY'] = os.getenv('B2_APP_KEY')
+    app.config['B2_BUCKET_NAME'] = os.getenv('B2_BUCKET_NAME')
+    app.config['B2_BASE_URL'] = f"https://f002.backblazeb2.com/file/{app.config['B2_BUCKET_NAME']}/"
+
     # Configure application
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -37,7 +44,7 @@ def create_app():
         SECRET_KEY=os.getenv('SECRET_KEY', 'your-secret-key-here'),
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///site.db',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        UPLOAD_FOLDER=os.getenv('UPLOAD_FOLDER', 'static/uploads'),
+        # UPLOAD_FOLDER=os.getenv('UPLOAD_FOLDER', 'static/uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB
         ALLOWED_EXTENSIONS=os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif').split(','),
         CACHE_TYPE='SimpleCache',
@@ -157,6 +164,52 @@ def admin():
     size_form = ShoeSizeForm()
     return render_template('admin.html', orders=orders, shoes=shoes, form=form, size_form=size_form)
 
+# @app.route('/admin/add_shoe', methods=['POST'])
+# @login_required
+# def add_shoe():
+#     if not current_user.is_admin:
+#         return redirect(url_for('index'))
+    
+#     form = ShoeForm()
+    
+#     if form.validate_on_submit():
+#         try:
+#             # Handle image upload
+#             if form.image.data:
+#                 file = form.image.data
+#                 filename = secure_filename(file.filename)
+#                 save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+#                 file.save(save_path)
+#                 image_url = url_for('static', filename=f'uploads/{filename}', _external=True)
+#             elif form.image_url.data:
+#                 image_url = form.image_url.data
+#             else:
+#                 flash('Either image file or URL is rp:appequired', 'danger')
+#                 return redirect(url_for('admin'))
+            
+#             # Create shoe
+#             new_shoe = Shoe(
+#                 name=form.name.data,
+#                 price=form.price.data,
+#                 description=form.description.data,
+#                 image_url=image_url,
+#                 category=form.category.data
+#             )
+            
+#             db.session.add(new_shoe)
+#             db.session.commit()
+#             cache.clear()
+#             flash('Shoe added successfully! Now add sizes', 'success')
+#             return redirect(url_for('manage_shoe_sizes', shoe_id=new_shoe.id))
+            
+#         except Exception as e:
+#             db.session.rollback()
+#             flash(f'Error saving shoe: {str(e)}', 'danger')
+#             app.logger.error(f'Error in add_shoe: {str(e)}')
+#     else:
+#         flash_errors(form)
+    
+#     return redirect(url_for('admin'))
 @app.route('/admin/add_shoe', methods=['POST'])
 @login_required
 def add_shoe():
@@ -167,17 +220,31 @@ def add_shoe():
     
     if form.validate_on_submit():
         try:
-            # Handle image upload
+            image_url = None
+            
+            # Handle B2 upload
             if form.image.data:
                 file = form.image.data
+                if file.filename == '':
+                    flash('No selected file', 'danger')
+                    return redirect(url_for('admin'))
+                
+                if not allowed_file(file.filename):
+                    flash('Invalid file type', 'danger')
+                    return redirect(url_for('admin'))
+                
                 filename = secure_filename(file.filename)
-                save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(save_path)
-                image_url = url_for('static', filename=f'uploads/{filename}', _external=True)
+                image_url = upload_to_b2(file, filename)
+                
+                if not image_url:
+                    flash('B2 upload failed', 'danger')
+                    return redirect(url_for('admin'))
+                    
             elif form.image_url.data:
                 image_url = form.image_url.data
-            else:
-                flash('Either image file or URL is required', 'danger')
+                
+            if not image_url:
+                flash('Image source required', 'danger')
                 return redirect(url_for('admin'))
             
             # Create shoe
@@ -203,6 +270,7 @@ def add_shoe():
         flash_errors(form)
     
     return redirect(url_for('admin'))
+
 
 @app.route('/admin/shoe/<int:shoe_id>/sizes', methods=['GET', 'POST'])
 @login_required
@@ -257,14 +325,19 @@ def update_shoe(shoe_id):
             shoe.category = form.category.data
             
             # Handle image updates
+            new_image_url = None
+            
             if form.image.data:
                 file = form.image.data
-                filename = secure_filename(file.filename)
-                save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(save_path)
-                shoe.image_url = url_for('static', filename=f'uploads/{filename}', _external=True)
-            elif form.image_url.data:
-                shoe.image_url = form.image_url.data
+                if file.filename != '' and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    new_image_url = upload_to_b2(file, filename)
+                    
+            if not new_image_url and form.image_url.data:
+                new_image_url = form.image_url.data
+                
+            if new_image_url:
+                shoe.image_url = new_image_url
             
             db.session.commit()
             cache.clear()
@@ -535,4 +608,5 @@ if __name__ == '__main__':
         serve(app, host="0.0.0.0", port=8080)
     else:
         # For development, use Flask's built-in server
+        app.config['GUNICORN_TIMEOUT'] = 120
         app.run(debug=True)
