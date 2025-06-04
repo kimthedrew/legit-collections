@@ -615,7 +615,7 @@ if __name__ == '__main__':
 def create_admin():
     if User.query.filter_by(is_admin=True).count() == 0:
         admin = User(
-            email="kimutai848@gmail.com",
+            email="kimutai@gmail.com",
             password=bcrypt.genetrate_password_hash("123498").decode('utf-8'),
             name="Legit collections",
             address="mine",
