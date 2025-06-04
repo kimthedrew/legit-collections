@@ -611,17 +611,27 @@ if __name__ == '__main__':
         app.config['GUNICORN_TIMEOUT'] = 120
         app.run(debug=True)
 
-@app.route('/create_admin')
-def create_admin():
-    if User.query.filter_by(is_admin=True).count() == 0:
-        admin = User(
-            email="kimutai@gmail.com",
-            password=bcrypt.genetrate_password_hash("123498").decode('utf-8'),
-            name="Legit collections",
-            address="mine",
-            is_admin=True
-        )
-        db.session.add(admin)
+# @app.route('/create_admin')
+# def create_admin():
+#     if User.query.filter_by(is_admin=True).count() == 0:
+#         admin = User(
+#             email="kimutai@gmail.com",
+#             password=bcrypt.genetrate_password_hash("123498").decode('utf-8'),
+#             name="Legit collections",
+#             address="mine",
+#             is_admin=True
+#         )
+#         db.session.add(admin)
+#         db.session.commit()
+#         return "Admin created!"
+#     return "Admin already exists"
+
+@app.route('/reset_admin_password')
+def reset_admin_password():
+    admin = User.query.filter_by(is_admin=True).first()
+    if admin:
+        new_password = "your_new_secure_password"
+        admin.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
         db.session.commit()
-        return "Admin created!"
-    return "Admin already exists"
+        return f"Admin password reset for {admin.email}"
+    return "No admin user found"
