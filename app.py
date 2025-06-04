@@ -610,3 +610,18 @@ if __name__ == '__main__':
         # For development, use Flask's built-in server
         app.config['GUNICORN_TIMEOUT'] = 120
         app.run(debug=True)
+
+@app.route('/create_admin')
+def create_admin():
+    if User.query.filter_by(is_admin=True).count() == 0:
+        admin = User(
+            email="kimutai3002@gmail.com",
+            password=bcrypt.genetrate_password_hash("123498").decode('utf-8'),
+            name="Legit Andy",
+            address="mine",
+            is_admin=True
+        )
+        db.session.add(admin)
+        db.session.commit()
+        return "Admin created!"
+    return "Admin already exists"
