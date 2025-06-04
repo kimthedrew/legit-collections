@@ -617,7 +617,7 @@ def create_admin():
         admin = User(
             email="kimutai848@gmail.com",
             password=bcrypt.genetrate_password_hash("123498").decode('utf-8'),
-            name="Legit Andy",
+            name="Legit collections",
             address="mine",
             is_admin=True
         )
