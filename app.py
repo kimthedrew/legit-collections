@@ -7,12 +7,11 @@ from flask_migrate import Migrate
 from flask_caching import Cache
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
-from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeForm, AddToCartForm
-from b2_helpers import upload_to_b2
 import os
 import re
 import logging
-
+import redis
+from flask_session import Session
 
 # Load environment variables
 load_dotenv()
@@ -26,30 +25,42 @@ cache = Cache()
 def create_app():
     app = Flask(__name__)
 
-    app.config['B2_KEY_ID'] = os.getenv('B2_KEY_ID')
-    app.config['B2_APP_KEY'] = os.getenv('B2_APP_KEY')
-    app.config['B2_BUCKET_NAME'] = os.getenv('B2_BUCKET_NAME')
-    app.config['B2_BASE_URL'] = f"https://f002.backblazeb2.com/file/{app.config['B2_BUCKET_NAME']}/"
-
-    # Configure application
-    app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    
     # Get database URL and handle PostgreSQL compatibility
     database_url = os.getenv('DATABASE_URL')
     if database_url and database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
     
+    # Configure application
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY', 'your-secret-key-here'),
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///site.db',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        # UPLOAD_FOLDER=os.getenv('UPLOAD_FOLDER', 'static/uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB
-        ALLOWED_EXTENSIONS=os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif').split(','),
+        ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'webp'},
         CACHE_TYPE='SimpleCache',
-        CACHE_DEFAULT_TIMEOUT=300
+        CACHE_DEFAULT_TIMEOUT=300,
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_TYPE='redis' if os.getenv('REDIS_URL') else 'filesystem',
+        SESSION_PERMANENT=False,
+        SESSION_USE_SIGNER=True
     )
+
+    # Configure Redis if available
+    redis_url = os.getenv('REDIS_URL')
+    if redis_url:
+        app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+    else:
+        # Fallback to filesystem sessions in development
+        app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
+        os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+
+    # Backblaze B2 configuration
+    app.config['B2_KEY_ID'] = os.getenv('B2_KEY_ID')
+    app.config['B2_APP_KEY'] = os.getenv('B2_APP_KEY')
+    app.config['B2_BUCKET_NAME'] = os.getenv('B2_BUCKET_NAME')
+    app.config['B2_BASE_URL'] = f"https://f002.backblazeb2.com/file/{app.config.get('B2_BUCKET_NAME', '')}/"
 
     # Initialize extensions with app
     db.init_app(app)
@@ -58,6 +69,9 @@ def create_app():
     migrate.init_app(app, db)
     cache.init_app(app)
     
+    # Initialize Flask-Session after setting config
+    Session(app)
+    
     login_manager.login_view = 'login'
 
     # Configure logging
@@ -65,23 +79,39 @@ def create_app():
         logging.basicConfig(level=logging.INFO)
         app.logger.addHandler(logging.StreamHandler())
 
+    # Import models after app and db are initialized
+    with app.app_context():
+        from models import User, Shoe, Order, ShoeSize
+        db.create_all()
+
     return app
 
 app = create_app()
 csrf = CSRFProtect(app)
 
+# Import forms and routes after app creation
+from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeForm, AddToCartForm
 # Import models after app creation
 from models import User, Shoe, Order, ShoeSize
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    """Check if the file has an allowed extension"""
+    if '.' not in filename:
+        return False
+        
+    ext = filename.rsplit('.', 1)[1].lower()
+    allowed = ext in app.config['ALLOWED_EXTENSIONS']
+    
+    if not allowed:
+        app.logger.warning(f"Invalid file extension: {ext}. Allowed: {app.config['ALLOWED_EXTENSIONS']}")
+        
+    return allowed
 
 def flash_errors(form):
     """Flash form validation errors to the user."""
     for field, errors in form.errors.items():
         for error in errors:
-            flash(f"{getattr(form, field).label.text}: {error}", 'danger')
+            flash(f"{field.replace('_', ' ').title()}: {error}", 'danger')
             app.logger.error(f"Form error in {field}: {error}")
 
 @login_manager.user_loader
@@ -164,52 +194,6 @@ def admin():
     size_form = ShoeSizeForm()
     return render_template('admin.html', orders=orders, shoes=shoes, form=form, size_form=size_form)
 
-# @app.route('/admin/add_shoe', methods=['POST'])
-# @login_required
-# def add_shoe():
-#     if not current_user.is_admin:
-#         return redirect(url_for('index'))
-    
-#     form = ShoeForm()
-    
-#     if form.validate_on_submit():
-#         try:
-#             # Handle image upload
-#             if form.image.data:
-#                 file = form.image.data
-#                 filename = secure_filename(file.filename)
-#                 save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-#                 file.save(save_path)
-#                 image_url = url_for('static', filename=f'uploads/{filename}', _external=True)
-#             elif form.image_url.data:
-#                 image_url = form.image_url.data
-#             else:
-#                 flash('Either image file or URL is rp:appequired', 'danger')
-#                 return redirect(url_for('admin'))
-            
-#             # Create shoe
-#             new_shoe = Shoe(
-#                 name=form.name.data,
-#                 price=form.price.data,
-#                 description=form.description.data,
-#                 image_url=image_url,
-#                 category=form.category.data
-#             )
-            
-#             db.session.add(new_shoe)
-#             db.session.commit()
-#             cache.clear()
-#             flash('Shoe added successfully! Now add sizes', 'success')
-#             return redirect(url_for('manage_shoe_sizes', shoe_id=new_shoe.id))
-            
-#         except Exception as e:
-#             db.session.rollback()
-#             flash(f'Error saving shoe: {str(e)}', 'danger')
-#             app.logger.error(f'Error in add_shoe: {str(e)}')
-#     else:
-#         flash_errors(form)
-    
-#     return redirect(url_for('admin'))
 @app.route('/admin/add_shoe', methods=['POST'])
 @login_required
 def add_shoe():
@@ -230,7 +214,7 @@ def add_shoe():
                     return redirect(url_for('admin'))
                 
                 if not allowed_file(file.filename):
-                    flash('Invalid file type', 'danger')
+                    flash(f'Invalid file type. Allowed types: {", ".join(app.config["ALLOWED_EXTENSIONS"])}', 'danger')
                     return redirect(url_for('admin'))
                 
                 filename = secure_filename(file.filename)
@@ -364,11 +348,6 @@ def delete_shoe(shoe_id):
     flash('Shoe deleted successfully!', 'success')
     return redirect(url_for('admin'))
 
-def flash_errors(form):
-    for field, errors in form.errors.items():
-        for error in errors:
-            flash(f"{field.replace('_', ' ').title()}: {error}", 'danger')
-
 @app.route('/admin/verify_payment/<int:order_id>', methods=['POST'])
 @login_required
 def verify_payment(order_id):
@@ -413,6 +392,7 @@ def add_to_cart(shoe_id):
     })
     
     session['cart'] = cart
+    session.modified = True  # Explicitly mark session as modified
     flash('Item added to cart', 'success')
     return redirect(url_for('index'))
 
@@ -542,7 +522,7 @@ def checkout():
         
         except Exception as e:
             db.session.rollback()
-            flash(str(e), 'dang2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lWer')
+            flash(str(e), 'danger')
     
     return render_template('checkout.html', form=form, cart=cart_items, total=total)
 
@@ -611,12 +591,13 @@ if __name__ == '__main__':
         app.config['GUNICORN_TIMEOUT'] = 120
         app.run(debug=True)
 
+# Temporary admin creation routes (comment out after use)
 # @app.route('/create_admin')
 # def create_admin():
 #     if User.query.filter_by(is_admin=True).count() == 0:
 #         admin = User(
-#             email="kimutai@gmail.com",
-#             password=bcrypt.genetrate_password_hash("123498").decode('utf-8'),
+#             email="kimutai3002@gmail.com",
+#             password=bcrypt.generate_password_hash("123498").decode('utf-8'),
 #             name="Legit collections",
 #             address="mine",
 #             is_admin=True
@@ -626,12 +607,12 @@ if __name__ == '__main__':
 #         return "Admin created!"
 #     return "Admin already exists"
 
-@app.route('/reset_admin_password')
-def reset_admin_password():
-    admin = User.query.filter_by(is_admin=True).first()
-    if admin:
-        new_password = "your_new_secure_password"
-        admin.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
-        db.session.commit()
-        return f"Admin password reset for {admin.email}"
-    return "No admin user found"
+# # @app.route('/reset_admin_password')
+# def reset_admin_password():
+#     admin = User.query.filter_by(is_admin=True).first()
+#     if admin:
+#         new_password = "your_new_secure_password"
+#         admin.password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+#         db.session.commit()
+#         return f"Admin password reset for {admin.email}"
+#     return "No admin user found"

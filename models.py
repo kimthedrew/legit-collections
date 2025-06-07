@@ -2,6 +2,7 @@ from flask_login import UserMixin
 from extensions import db
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+# from flask_session import SqlAlchemySessionInterface
 
 bcrypt = Bcrypt()
 
@@ -69,3 +70,9 @@ class ShoeSize(db.Model):
     quantity = db.Column(db.Integer, default=0)
     
     # shoe = db.relationship('Shoe', backref='sizes')
+
+class Session(db.Model):
+    __tablename__ = 'sessions'
+    id = db.Column(db.String(255), primary_key=True)
+    data = db.Column(db.LargeBinary)
+    expiry = db.Column(db.DateTime)
