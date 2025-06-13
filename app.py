@@ -572,26 +572,45 @@ def test_b2():
     try:
         # Create a test file
         from io import BytesIO
-        test_file = BytesIO(b"Backblaze test file content")
+        test_file = BytesIO(b"This is a Backblaze test file")
         test_file.filename = "test_file.txt"
         test_file.content_type = "text/plain"
         
         # Attempt upload
         url = upload_to_b2(test_file, "test_file.txt")
+        
         if url:
+            # Verify URL accessibility
+            try:
+                response = requests.head(url)
+                if response.status_code == 200:
+                    return jsonify({
+                        "status": "success",
+                        "url": url,
+                        "message": "Backblaze upload and URL verification successful"
+                    })
+                else:
+                    return jsonify({
+                        "status": "warning",
+                        "url": url,
+                        "message": f"Upload succeeded but URL returned status {response.status_code}"
+                    })
+            except Exception as e:
+                return jsonify({
+                    "status": "warning",
+                    "url": url,
+                    "message": f"Upload succeeded but URL verification failed: {str(e)}"
+                })
+        else:
             return jsonify({
-                "status": "success",
-                "url": url,
-                "message": "Backblaze upload successful"
-            })
-        return jsonify({
-            "status": "error",
-            "message": "Upload function returned None"
-        }), 500
+                "status": "error",
+                "message": "Upload function returned None. Check server logs for details."
+            }), 500
+            
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": str(e)
+            "message": f"Test failed: {str(e)}"
         }), 500
 # Add this to app.py
 @app.template_filter('float')
