@@ -3,6 +3,9 @@ import hashlib
 from flask import current_app
 
 def upload_to_b2(file, filename):
+
+    current_app.logger.info(f"Attempting to upload file: {filename}")
+    
     # Get credentials from app config
     key_id = current_app.config['B2_KEY_ID']
     app_key = current_app.config['B2_APP_KEY']
