@@ -609,6 +609,15 @@ def test_boto3():
             "status": "error",
             "message": str(e)
         }), 500
+    
+@app.route('/b2_config')
+def b2_config():
+    return jsonify({
+        "B2_KEY_ID": os.getenv('B2_KEY_ID', 'Not set'),
+        "B2_APP_KEY": bool(os.getenv('B2_APP_KEY')),  # Show only if set
+        "B2_BUCKET_NAME": os.getenv('B2_BUCKET_NAME', 'Not set'),
+        "B2_ENDPOINT_URL": os.getenv('B2_ENDPOINT_URL', 'Not set')
+    })
 
 @app.route('/test_b2')
 def test_b2():
@@ -620,7 +629,7 @@ def test_b2():
         test_file.content_type = "text/plain"
         
         # Attempt upload
-        url = upload_to_b2(test_file, "test_file.txt")
+        url = upload_to_b3(test_file, "test_file.txt")
         
         if url:
             # Verify URL accessibility
