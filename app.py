@@ -96,7 +96,7 @@ from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeFo
 # Import models after app creation
 from models import User, Shoe, Order, ShoeSize
 
-from b2_helpers import upload_to_b2
+from b2_helpers import upload_to_b3
 
 def allowed_file(filename):
     """Check if the file has an allowed extension"""
