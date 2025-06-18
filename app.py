@@ -35,6 +35,8 @@ def create_app():
         SECRET_KEY=os.getenv('SECRET_KEY', 'your-secret-key-here'),
         SQLALCHEMY_DATABASE_URI=database_url or 'sqlite:///site.db',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        B2_ENDPOINT_URL=os.getenv('B2_ENDPOINT_URL', 'https://s3.us-east-005.backblazeb2.com'),
+        B2_REGION_NAME=os.getenv('B2_REGION_NAME', 'us-east-005'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB
         ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'webp'},
         CACHE_TYPE='SimpleCache',
@@ -206,7 +208,7 @@ def add_shoe():
     
     if form.validate_on_submit():
         try:
-            image_url = None
+            image_url = upload_to_b3(file, filename)
             
             # Handle B2 upload
             if form.image.data:
@@ -311,7 +313,7 @@ def update_shoe(shoe_id):
             shoe.category = form.category.data
             
             # Handle image updates
-            new_image_url = None
+            new_image_url = new_image_url = upload_to_b3(file, filename)
             
             if form.image.data:
                 file = form.image.data
@@ -566,6 +568,29 @@ def migrate_cart():
         session['cart'] = new_cart
         flash('Cart migrated to new format', 'success')
     return redirect(url_for('view_cart'))
+
+@app.route('/test_boto3')
+def test_boto3():
+    from io import BytesIO
+    
+    # Create a test file
+    test_file = BytesIO(b"Boto3 integration test")
+    test_file.filename = "boto3_test.txt"
+    test_file.content_type = "text/plain"
+    
+    # Attempt upload
+    url = upload_to_b3(test_file, "boto3_test.txt")
+    
+    if url:
+        return jsonify({
+            "status": "success",
+            "url": url,
+            "message": "Boto3 upload successful"
+        })
+    return jsonify({
+        "status": "error",
+        "message": "Boto3 upload failed"
+    }), 500
 
 @app.route('/test_b2')
 def test_b2():
