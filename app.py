@@ -60,7 +60,7 @@ def create_app():
     app.config['B2_KEY_ID'] = os.getenv('B2_KEY_ID')
     app.config['B2_APP_KEY'] = os.getenv('B2_APP_KEY')
     app.config['B2_BUCKET_NAME'] = os.getenv('B2_BUCKET_NAME')
-    app.config['B2_BASE_URL'] = f"https://s3.us-east-005.backblazeb2.com/file/{app.config.get('B2_BUCKET_NAME', '')}/"
+    app.config['B2_BASE_URL'] = f"https://s3.us-east-005.backblazeb2.com/{app.config.get('B2_BUCKET_NAME', '')}/"
 
     # Initialize extensions with app
     db.init_app(app)
