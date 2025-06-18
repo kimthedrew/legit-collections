@@ -22,7 +22,7 @@ def upload_to_b2(file, filename):
         current_app.logger.info(f"Using B2 Key ID: {key_id[:5]}...{key_id[-3:]}, Bucket: {bucket_name}")
 
         # 1. Get upload authorization
-        auth_url = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
+        auth_url = "https://s3.us-east-005.backblazeb2.com/b2api/v2/b2_authorize_account"
                     
         try:
             auth_response = requests.get(auth_url, auth=(key_id, app_key), timeout=30)
