@@ -23,6 +23,7 @@ def upload_to_b2(file, filename):
 
         # 1. Get upload authorization
         auth_url = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
+                    
         try:
             auth_response = requests.get(auth_url, auth=(key_id, app_key), timeout=30)
             auth_response.raise_for_status()
