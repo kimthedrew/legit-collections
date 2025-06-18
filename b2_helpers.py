@@ -1,4 +1,5 @@
 import boto3
+from botocore.client import Config
 from flask import current_app
 import logging
 
@@ -9,21 +10,27 @@ def upload_to_b3(file, filename):
         app_key = current_app.config.get('B2_APP_KEY')
         bucket_name = current_app.config.get('B2_BUCKET_NAME')
         endpoint_url = current_app.config.get('B2_ENDPOINT_URL')
-        region_name = current_app.config.get('B2_REGION_NAME')
         
         # Validate configuration
-        if not all([key_id, app_key, bucket_name, endpoint_url, region_name]):
+        if not all([key_id, app_key, bucket_name, endpoint_url]):
             current_app.logger.error("Missing Backblaze configuration")
             return None
 
-        # Create S3 client
+        # Create S3 client with proper configuration
         s3 = boto3.client(
             's3',
             aws_access_key_id=key_id,
             aws_secret_access_key=app_key,
             endpoint_url=endpoint_url,
-            region_name=region_name
+            config=Config(
+                signature_version='s3v4',  # Required for Backblaze
+                s3={'addressing_style': 'virtual'},  # Required for Backblaze
+                region_name='us-east-005'  # Must match your endpoint
+            )
         )
+        
+        # Reset file pointer to beginning
+        file.seek(0)
         
         # Upload file
         s3.upload_fileobj(
@@ -31,7 +38,7 @@ def upload_to_b3(file, filename):
             bucket_name,
             filename,
             ExtraArgs={
-                'ACL': 'public-read',  # Make file publicly accessible
+                'ACL': 'public-read',
                 'ContentType': file.content_type
             }
         )
@@ -41,5 +48,5 @@ def upload_to_b3(file, filename):
         return public_url
         
     except Exception as e:
-        current_app.logger.error(f"Boto3 upload failed: {str(e)}")
+        current_app.logger.error(f"Boto3 upload failed: {str(e)}", exc_info=True)
         return None

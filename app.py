@@ -571,26 +571,44 @@ def migrate_cart():
 
 @app.route('/test_boto3')
 def test_boto3():
-    from io import BytesIO
-    
-    # Create a test file
-    test_file = BytesIO(b"Boto3 integration test")
-    test_file.filename = "boto3_test.txt"
-    test_file.content_type = "text/plain"
-    
-    # Attempt upload
-    url = upload_to_b3(test_file, "boto3_test.txt")
-    
-    if url:
+    try:
+        import boto3
+        from botocore.client import Config
+        
+        # Get configuration
+        key_id = os.getenv('B2_KEY_ID')
+        app_key = os.getenv('B2_APP_KEY')
+        bucket_name = os.getenv('B2_BUCKET_NAME')
+        endpoint_url = os.getenv('B2_ENDPOINT_URL')
+        
+        # Create client
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=key_id,
+            aws_secret_access_key=app_key,
+            endpoint_url=endpoint_url,
+            config=Config(
+                signature_version='s3v4',
+                s3={'addressing_style': 'virtual'},
+                region_name='us-east-005'
+            )
+        )
+        
+        # Test connection
+        response = s3.list_buckets()
+        buckets = [b['Name'] for b in response['Buckets']]
+        
         return jsonify({
             "status": "success",
-            "url": url,
-            "message": "Boto3 upload successful"
+            "buckets": buckets,
+            "message": f"Connected to {endpoint_url}"
         })
-    return jsonify({
-        "status": "error",
-        "message": "Boto3 upload failed"
-    }), 500
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route('/test_b2')
 def test_b2():
