@@ -772,8 +772,8 @@ def b2_config():
 @app.route('/create_admin')
 def create_admin():
     # Predefined admin credentials
-    admin_email = "admin@example.com"
-    admin_password = "secure_password_123"
+    admin_email = "admin2@example.com"
+    admin_password = "securepassword123"
     admin_name = "Admin User"
     admin_address = "Admin Address"
     
