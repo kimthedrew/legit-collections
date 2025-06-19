@@ -1,65 +1,42 @@
-import boto3
-from botocore.client import Config
+from b2sdk.v2 import B2Api, InMemoryAccountInfo, UploadSourceBytes
 from flask import current_app
 import logging
-import re
 
-def upload_to_b3(file, filename):
+def upload_to_b2(file, filename):
     try:
         # Get configuration from app
         key_id = current_app.config.get('B2_KEY_ID')
         app_key = current_app.config.get('B2_APP_KEY')
         bucket_name = current_app.config.get('B2_BUCKET_NAME')
-        endpoint_url = current_app.config.get('B2_ENDPOINT_URL')
         
-        # Validate and clean credentials
-        if not key_id or not app_key or not bucket_name or not endpoint_url:
+        if not key_id or not app_key or not bucket_name:
             current_app.logger.error("Missing Backblaze configuration")
             return None
-            
-        # Clean credentials - remove any invisible characters
-        key_id = re.sub(r'[^\x20-\x7E]', '', key_id).strip()
-        app_key = re.sub(r'[^\x20-\x7E]', '', app_key).strip()
+
+        # Create an in-memory account info
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
         
-        # Extract region from endpoint URL
-        region_match = re.search(r'https://s3\.([\w\-]+)\.backblazeb2\.com', endpoint_url)
-        if not region_match:
-            current_app.logger.error(f"Invalid endpoint URL format: {endpoint_url}")
-            return None
-            
-        region = region_match.group(1)
+        # Authorize the account
+        b2_api.authorize_account("production", key_id, app_key)
         
-        # Create S3 client with proper configuration
-        s3 = boto3.client(
-            's3',
-            aws_access_key_id=key_id,
-            aws_secret_access_key=app_key,
-            endpoint_url=endpoint_url,
-            config=Config(
-                signature_version='s3v4',
-                s3={'addressing_style': 'virtual'},
-                region_name=region
-            )
-        )
+        # Get the bucket
+        bucket = b2_api.get_bucket_by_name(bucket_name)
         
-        # Reset file pointer to beginning
-        file.seek(0)
+        # Read the file data
+        file_data = file.read()
         
-        # Upload file
-        s3.upload_fileobj(
-            Fileobj=file,
-            Bucket=bucket_name,
-            Key=filename,
-            ExtraArgs={
-                'ACL': 'public-read',
-                'ContentType': file.content_type
-            }
+        # Upload the file
+        uploaded_file = bucket.upload(
+            upload_source=UploadSourceBytes(file_data),
+            file_name=filename,
+            content_type=file.content_type
         )
         
         # Construct public URL
-        public_url = f"{endpoint_url}/{bucket_name}/{filename}"
+        public_url = b2_api.get_download_url_for_file_name(bucket_name, filename)
         return public_url
         
     except Exception as e:
-        current_app.logger.error(f"Boto3 upload failed: {str(e)}", exc_info=True)
+        current_app.logger.error(f"Backblaze SDK upload failed: {str(e)}", exc_info=True)
         return None
