@@ -42,7 +42,7 @@ class Shoe(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship to sizes
-    sizes = db.relationship('ShoeSize', backref='shoe', lazy=True)
+    sizes = db.relationship('ShoeSize', backref='shoe', cascade='all, delete-orphan', lazy=True)
 
 class Order(db.Model):
     __tablename__ = 'orders'
