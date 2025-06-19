@@ -208,14 +208,11 @@ def add_shoe():
     
     if form.validate_on_submit():
         try:
-            image_url = upload_to_b2(file, filename)
+            image_url = None
             
-            # Handle B2 upload
-            if form.image.data:
+            # Handle B2 upload if an image file was provided
+            if form.image.data and form.image.data.filename != '':
                 file = form.image.data
-                if file.filename == '':
-                    flash('No selected file', 'danger')
-                    return redirect(url_for('admin'))
                 
                 if not allowed_file(file.filename):
                     flash(f'Invalid file type. Allowed types: {", ".join(app.config["ALLOWED_EXTENSIONS"])}', 'danger')
@@ -228,11 +225,13 @@ def add_shoe():
                     flash('B2 upload failed', 'danger')
                     return redirect(url_for('admin'))
                     
-            elif form.image_url.data:
+            # If no file was uploaded but a URL was provided
+            if not image_url and form.image_url.data:
                 image_url = form.image_url.data
                 
+            # Ensure we have an image source
             if not image_url:
-                flash('Image source required', 'danger')
+                flash('Either upload an image or provide an image URL', 'danger')
                 return redirect(url_for('admin'))
             
             # Create shoe
@@ -253,11 +252,12 @@ def add_shoe():
         except Exception as e:
             db.session.rollback()
             flash(f'Error saving shoe: {str(e)}', 'danger')
-            app.logger.error(f'Error in add_shoe: {str(e)}')
+            app.logger.error(f'Error in add_shoe: {str(e)}', exc_info=True)
     else:
         flash_errors(form)
     
     return redirect(url_for('admin'))
+
 
 
 @app.route('/admin/shoe/<int:shoe_id>/sizes', methods=['GET', 'POST'])
@@ -302,7 +302,7 @@ def update_shoe(shoe_id):
         return redirect(url_for('index'))
     
     shoe = Shoe.query.get_or_404(shoe_id)
-    form = ShoeForm(obj=shoe)  # Pre-populate form with existing data
+    form = ShoeForm(obj=shoe)
     
     if form.validate_on_submit():
         try:
@@ -312,18 +312,24 @@ def update_shoe(shoe_id):
             shoe.description = form.description.data
             shoe.category = form.category.data
             
-            # Handle image updates
-            new_image_url = new_image_url = upload_to_b2(file, filename)
+            # Handle image updates only if a new image is provided
+            new_image_url = None
             
-            if form.image.data:
+            if form.image.data and form.image.data.filename != '':
                 file = form.image.data
-                if file.filename != '' and allowed_file(file.filename):
+                
+                if allowed_file(file.filename):
                     filename = secure_filename(file.filename)
                     new_image_url = upload_to_b2(file, filename)
+                else:
+                    flash('Invalid file type for uploaded image', 'danger')
+                    return redirect(url_for('admin'))
                     
+            # If no new file but a new URL was provided
             if not new_image_url and form.image_url.data:
                 new_image_url = form.image_url.data
                 
+            # Update image URL only if we have a new one
             if new_image_url:
                 shoe.image_url = new_image_url
             
@@ -333,12 +339,11 @@ def update_shoe(shoe_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating shoe: {str(e)}', 'danger')
+            app.logger.error(f'Error updating shoe: {str(e)}', exc_info=True)
     else:
         flash_errors(form)
     
     return redirect(url_for('admin'))
-
-
 # Add delete shoe route
 @app.route('/admin/delete_shoe/<int:shoe_id>', methods=['POST'])
 @login_required

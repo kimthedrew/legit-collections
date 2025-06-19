@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, TextAreaField, IntegerField, FloatField, FileField, SelectField
-from wtforms.validators import DataRequired, Email, Length, ValidationError, Optional, NumberRange, Regexp
+from wtforms.validators import DataRequired, Email, Length, ValidationError, Optional, NumberRange, Regexp, InputRequired
 from models import User
 from flask_wtf.file import FileAllowed
 from flask import request
@@ -32,23 +32,23 @@ class PaymentForm(FlaskForm):
     ])
 
 class ShoeForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired()])
-    price = FloatField('Price', validators=[
-        DataRequired(), 
-        NumberRange(min=0.01, message="Price must be greater than 0")
-    ])
-    description = TextAreaField('Description')
-    image = FileField('Product Image', validators=[
-        FileAllowed(['jpg', 'png', 'jpeg', 'gif'], 'Images only!')
-    ])
-    image_url = StringField('Image URL', validators=[Optional()])
-    category = StringField('Category', validators=[DataRequired()])
-
-    # Add custom validation for new products
-    def validate_image(self, field):
-        # Only require image for new products
-        if request.endpoint == 'add_shoe' and not field.data and not self.image_url.data:
-            raise ValidationError('Either image file or URL is required')
+    name = StringField('Name', validators=[InputRequired()])
+    price = DecimalField('Price', validators=[InputRequired()])
+    description = TextAreaField('Description', validators=[InputRequired()])
+    category = StringField('Category', validators=[InputRequired()])
+    image = FileField('Upload Image', validators=[Optional()])
+    image_url = StringField('Or Image URL', validators=[Optional()])
+    
+    def validate(self):
+        # Custom validation to ensure at least one image source
+        if not super().validate():
+            return False
+            
+        if not self.image.data and not self.image_url.data:
+            self.image_url.errors.append('Either upload an image or provide an image URL')
+            return False
+            
+        return True
 
 class ShoeSizeForm(FlaskForm):
     size = StringField('Size', validators=[
