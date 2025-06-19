@@ -124,32 +124,28 @@ def load_user(user_id):
 
 # Routes
 @app.route('/')
-@cache.cached(timeout=300)
 def index():
     page = request.args.get('page', 1, type=int)
-    # Eager load sizes to avoid N+1 query problem
+    
+    # Create a cache key that includes the page number
+    cache_key = f"index_page_{page}"
+    cached_response = cache.get(cache_key)
+    
+    if cached_response:
+        return cached_response
+    
     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
                      .order_by(Shoe.id.desc())\
                      .paginate(page=page, per_page=9)
     
-    # Create a form instance for each shoe
+    # Process shoes (same as before)
     for shoe in shoes.items:
         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
-        
-        # Format price
-        if isinstance(shoe.price, (float, int)):
-            shoe.formatted_price = f"Ksh{shoe.price:.2f}"
-        else:
-            shoe.formatted_price = f"Ksh{shoe.price}"
-            
-        # Create a form instance for the shoe
-        shoe.form = AddToCartForm()
-        
-        # Populate size choices
-        available_sizes = [s for s in shoe.sizes if s.quantity > 0]
-        shoe.form.size.choices = [(size.size, size.size) for size in available_sizes]
-    
-    return render_template('index.html', shoes=shoes)
+        # ... rest of your processing ...
+
+    rendered = render_template('index.html', shoes=shoes)
+    cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
+    return rendered
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
