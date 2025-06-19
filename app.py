@@ -769,22 +769,39 @@ def b2_config():
         "B2_ENDPOINT_URL": os.getenv('B2_ENDPOINT_URL', 'Not set')
     })
 
-@app.route('/_create-admin-once', methods=['POST'])
-def create_admin_route():
-    # in prod, you should protect this heavily—e.g. require a secret header/token
-    secret = request.headers.get('X-ADMIN-SETUP-TOKEN')
-    if secret != current_app.config['ADMIN_SETUP_TOKEN']:
-        abort(403)
-
-    data = request.get_json()
+@app.route('/create_admin')
+def create_admin():
+    # Predefined admin credentials
+    admin_email = "admin@example.com"
+    admin_password = "secure_password_123"
+    admin_name = "Admin User"
+    admin_address = "Admin Address"
+    
+    # Check if admin already exists
+    if User.query.filter_by(email=admin_email).first():
+        return "Admin user already exists", 400
+    
+    # Create admin user
     admin = User(
-        email=data['email'], password=data['password'],
-        name=data.get('name','Admin'), is_admin=True
+        email=admin_email,
+        password=bcrypt.generate_password_hash(admin_password).decode('utf-8'),
+        name=admin_name,
+        address=admin_address,
+        is_admin=True
     )
-    db.session.add(admin)
-    db.session.commit()
-    return jsonify(id=admin.id, email=admin.email), 201
-
+    
+    # Add to database
+    try:
+        db.session.add(admin)
+        db.session.commit()
+        return "Admin created successfully!<br>" \
+               f"Email: {admin_email}<br>" \
+               f"Password: {admin_password}<br>" \
+               "<strong>IMPORTANT: Remove this route after use!</strong>"
+    except Exception as e:
+        db.session.rollback()
+        return f"Error creating admin: {str(e)}", 500
+    
 @app.route('/test_b2')
 def test_b2():
     try:
