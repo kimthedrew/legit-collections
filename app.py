@@ -610,6 +610,63 @@ def test_boto3():
             "message": str(e)
         }), 500
     
+@app.route('/test_connection')
+def test_connection():
+    try:
+        import boto3
+        from botocore.client import Config
+        import re
+        
+        # Get configuration
+        key_id = os.getenv('B2_KEY_ID')
+        app_key = os.getenv('B2_APP_KEY')
+        endpoint_url = os.getenv('B2_ENDPOINT_URL')
+        
+        # Clean credentials
+        key_id = re.sub(r'[^\x20-\x7E]', '', key_id).strip()
+        app_key = re.sub(r'[^\x20-\x7E]', '', app_key).strip()
+        
+        # Extract region
+        region_match = re.search(r'https://s3\.([\w\-]+)\.backblazeb2\.com', endpoint_url)
+        if not region_match:
+            return jsonify({"error": "Invalid endpoint format"}), 400
+            
+        region = region_match.group(1)
+        
+        # Create client
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=key_id,
+            aws_secret_access_key=app_key,
+            endpoint_url=endpoint_url,
+            config=Config(
+                signature_version='s3v4',
+                s3={'addressing_style': 'virtual'},
+                region_name=region
+            )
+        )
+        
+        # Test connection
+        response = s3.list_buckets()
+        bucket_names = [b['Name'] for b in response['Buckets']]
+        
+        return jsonify({
+            "status": "success",
+            "buckets": bucket_names,
+            "region": region,
+            "endpoint": endpoint_url
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "key_id": key_id,
+            "app_key": bool(app_key),  # Don't expose full key
+            "endpoint": endpoint_url,
+            "region": region
+        }), 500
+    
 @app.route('/b2_config')
 def b2_config():
     return jsonify({

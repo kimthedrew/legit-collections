@@ -2,6 +2,7 @@ import boto3
 from botocore.client import Config
 from flask import current_app
 import logging
+import re
 
 def upload_to_b3(file, filename):
     try:
@@ -11,14 +12,22 @@ def upload_to_b3(file, filename):
         bucket_name = current_app.config.get('B2_BUCKET_NAME')
         endpoint_url = current_app.config.get('B2_ENDPOINT_URL')
         
-        # Validate configuration
+        # Validate and clean credentials
         if not key_id or not app_key or not bucket_name or not endpoint_url:
             current_app.logger.error("Missing Backblaze configuration")
-            current_app.logger.error(f"Config: key_id={bool(key_id)}, app_key={bool(app_key)}, bucket={bucket_name}, endpoint={endpoint_url}")
             return None
-
-        # Extract region from endpoint
-        region = endpoint_url.split('.')[1]  # Extract "us-east-005" from "https://s3.us-east-005.backblazeb2.com"
+            
+        # Clean credentials - remove any invisible characters
+        key_id = re.sub(r'[^\x20-\x7E]', '', key_id).strip()
+        app_key = re.sub(r'[^\x20-\x7E]', '', app_key).strip()
+        
+        # Extract region from endpoint URL
+        region_match = re.search(r'https://s3\.([\w\-]+)\.backblazeb2\.com', endpoint_url)
+        if not region_match:
+            current_app.logger.error(f"Invalid endpoint URL format: {endpoint_url}")
+            return None
+            
+        region = region_match.group(1)
         
         # Create S3 client with proper configuration
         s3 = boto3.client(
