@@ -39,9 +39,9 @@ class ShoeForm(FlaskForm):
     image = FileField('Upload Image', validators=[Optional()])
     image_url = StringField('Or Image URL', validators=[Optional()])
     
-    def validate(self):
+    def validate(self, extra_validators=None, **kwargs):
         # Custom validation to ensure at least one image source
-        if not super().validate():
+        if not super().validate(extra_validators=extra_validators, **kwargs):
             return False
             
         if not self.image.data and not self.image_url.data:
