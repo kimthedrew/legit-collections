@@ -666,6 +666,64 @@ def migrate_cart():
 #             "endpoint": endpoint_url,
 #             "region": region
 #         }), 500
+
+@app.route('/b2_diag')
+def b2_diag():
+    try:
+        from b2sdk.v2 import B2Api, InMemoryAccountInfo
+        
+        key_id = os.getenv('B2_KEY_ID')
+        app_key = os.getenv('B2_APP_KEY')
+        bucket_name = os.getenv('B2_BUCKET_NAME')
+        
+        # Mask credentials for logging
+        key_id_mask = f"{key_id[:5]}...{key_id[-3:]}" if key_id else "Not set"
+        app_key_mask = f"{app_key[:5]}...{app_key[-3:]}" if app_key else "Not set"
+        
+        info = InMemoryAccountInfo()
+        b2_api = B2Api(info)
+        
+        try:
+            # Try US authorization
+            b2_api.authorize_account("production", key_id, app_key)
+            auth_success = True
+            auth_server = "US"
+        except Exception as us_e:
+            try:
+                # Try EU authorization
+                b2_api.authorize_account("production", key_id, app_key, realm="eu-central-001")
+                auth_success = True
+                auth_server = "EU"
+            except Exception as eu_e:
+                return jsonify({
+                    "status": "error",
+                    "message": f"Authorization failed: US: {str(us_e)}, EU: {str(eu_e)}",
+                    "key_id": key_id_mask,
+                    "app_key": app_key_mask,
+                    "bucket": bucket_name
+                }), 500
+        
+        if auth_success:
+            try:
+                bucket = b2_api.get_bucket_by_name(bucket_name)
+                return jsonify({
+                    "status": "success",
+                    "message": f"Authenticated with {auth_server} server",
+                    "bucket": bucket_name,
+                    "key_id": key_id_mask
+                })
+            except Exception as e:
+                return jsonify({
+                    "status": "error",
+                    "message": f"Bucket access failed: {str(e)}",
+                    "bucket": bucket_name
+                }), 500
+                
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Diagnostic failed: {str(e)}"
+        }), 500
     
 @app.route('/test_b2_sdk')
 def test_b2_sdk():
@@ -710,6 +768,22 @@ def b2_config():
         "B2_BUCKET_NAME": os.getenv('B2_BUCKET_NAME', 'Not set'),
         "B2_ENDPOINT_URL": os.getenv('B2_ENDPOINT_URL', 'Not set')
     })
+
+@app.route('/_create-admin-once', methods=['POST'])
+def create_admin_route():
+    # in prod, you should protect this heavily—e.g. require a secret header/token
+    secret = request.headers.get('X-ADMIN-SETUP-TOKEN')
+    if secret != current_app.config['ADMIN_SETUP_TOKEN']:
+        abort(403)
+
+    data = request.get_json()
+    admin = User(
+        email=data['email'], password=data['password'],
+        name=data.get('name','Admin'), is_admin=True
+    )
+    db.session.add(admin)
+    db.session.commit()
+    return jsonify(id=admin.id, email=admin.email), 201
 
 @app.route('/test_b2')
 def test_b2():
