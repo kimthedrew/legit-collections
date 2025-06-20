@@ -45,9 +45,9 @@ def create_app():
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_TYPE='redis' if os.getenv('REDIS_URL') else 'filesystem',
-        SESSION_PERMANENT=False,
-        SESSION_USE_SIGNER=True
-        # PERMANENT_SESSION_LIFETIME=timedelta(days=7)
+        SESSION_PERMANENT=True,
+        SESSION_USE_SIGNER=True,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7)
     )
 
     # Configure Redis if available
@@ -209,36 +209,41 @@ def register():
 #     return render_template('login.html', form=form)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+        
     form = LoginForm()
     next_url = request.args.get('next', url_for('index'))
     
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
+        
         if user and user.verify_password(form.password.data):
-            login_user(user)
+            # Login user and commit session
+            login_user(user, remember=True)
+            session.modified = True
             
-            # Handle pending cart items from Flask session
+            # Handle pending cart items
             if 'pending_cart_item' in session:
                 item = session.pop('pending_cart_item')
-                
-                # Validate and add to cart
                 try:
                     shoe = Shoe.query.get(item.get('shoe_id'))
                     if shoe:
-                        # Only add if size is still available
-                        size_inv = next((s for s in shoe.sizes if s.size == item.get('size') and s.quantity > 0), None)
+                        size_inv = next((s for s in shoe.sizes 
+                                       if s.size == item.get('size') and s.quantity > 0), None)
                         if size_inv:
                             cart = session.get('cart', [])
                             cart.append(item)
                             session['cart'] = cart
                             flash('Item added to cart!', 'success')
                         else:
-                            flash('The selected size is no longer available', 'warning')
+                            flash('Selected size no longer available', 'warning')
                 except Exception as e:
-                    app.logger.error(f"Error adding pending item: {str(e)}")
-                
+                    app.logger.error(f"Pending item error: {str(e)}")
+            
             return redirect(next_url)
-        flash('Invalid email or password', 'danger')
+        else:
+            flash('Invalid email or password', 'danger')
     
     return render_template('login.html', form=form, next=next_url)
 
