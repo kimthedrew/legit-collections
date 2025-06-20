@@ -124,60 +124,59 @@ def flash_errors(form):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Routes
-# @app.route('/')
-# def index():
-#     page = request.args.get('page', 1, type=int)
-    
-#     # Create a cache key that includes the page number
-#     cache_key = f"index_page_{page}"
-#     cached_response = cache.get(cache_key)
-    
-#     if cached_response:
-#         return cached_response
-    
-#     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
-#                      .order_by(Shoe.id.desc())\
-#                      .paginate(page=page, per_page=9)
-    
-#     # Process shoes (same as before)
-#     for shoe in shoes.items:
-#         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
-#         # ... rest of your processing ...
-
-#     rendered = render_template('index.html', shoes=shoes)
-#     cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
-#     return rendered
-
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
-    cache_key = f"index_page_{page}"
     
-    if cache.get(cache_key):
-        return cache.get(cache_key)
+    # Create a cache key that includes the page number
+    cache_key = f"index_page_{page}"
+    cached_response = cache.get(cache_key)
+    
+    if cached_response:
+        return cached_response
     
     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
                      .order_by(Shoe.id.desc())\
                      .paginate(page=page, per_page=9)
     
-    # Create forms dictionary
-    forms_dict = {}
-    
+    # Process shoes (same as before)
     for shoe in shoes.items:
         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
-        
-        # Format price
-        if isinstance(shoe.price, (float, int)):
-            shoe.formatted_price = f"Ksh{shoe.price:.2f}"
-        else:
-            shoe.formatted_price = f"Ksh{shoe.price}"
-            
-        # Create form instance for this shoe
-        forms_dict[shoe.id] = AddToCartForm()
+        # ... rest of your processing ...
+
+    rendered = render_template('index.html', shoes=shoes)
+    cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
+    return rendered
+
+# @app.route('/')
+# def index():
+#     page = request.args.get('page', 1, type=int)
+#     cache_key = f"index_page_{page}"
     
-    rendered = render_template('index.html', shoes=shoes, forms_dict=forms_dict)
-    cache.set(cache_key, rendered, timeout=300)
+#     if cache.get(cache_key):
+#         return cache.get(cache_key)
+    
+#     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
+#                      .order_by(Shoe.id.desc())\
+#                      .paginate(page=page, per_page=9)
+    
+#     # Create forms dictionary
+#     forms_dict = {}
+    
+#     for shoe in shoes.items:
+#         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
+        
+#         # Format price
+#         if isinstance(shoe.price, (float, int)):
+#             shoe.formatted_price = f"Ksh{shoe.price:.2f}"
+#         else:
+#             shoe.formatted_price = f"Ksh{shoe.price}"
+            
+#         # Create form instance for this shoe
+#         forms_dict[shoe.id] = AddToCartForm()
+    
+#     rendered = render_template('index.html', shoes=shoes, forms_dict=forms_dict)
+#     cache.set(cache_key, rendered, timeout=300)
     return rendered
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -475,25 +474,35 @@ def verify_payment(order_id):
 
 @app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
 def add_to_cart(shoe_id):
-    # Step 1: Create form instance and validate
+    # Retrieve shoe FIRST to get available sizes
+    shoe = Shoe.query.options(db.joinedload(Shoe.sizes)).get_or_404(shoe_id)
+    
+    # Create form and DYNAMICALLY SET CHOICES
     form = AddToCartForm(request.form)
+    form.size.choices = [(str(size.size), str(size.size)) for size in shoe.sizes]
+    
+    # Validate after setting choices
     if not form.validate():
         flash('Invalid form submission. Please try again.', 'danger')
         return redirect(url_for('index'))
     
-    # Step 2: Get selected size
-    selected_size = form.size.data
+    # Get selected size and convert to int
+    try:
+        selected_size = int(form.size.data)  # Convert string to int
+    except ValueError:
+        flash('Invalid size selection', 'danger')
+        return redirect(url_for('index'))
     
-    # Step 3: Retrieve shoe with eager loading
-    shoe = Shoe.query.options(db.joinedload(Shoe.sizes)).get_or_404(shoe_id)
-    
-    # Step 4: Find size inventory
+    # Find size inventory (use integer for comparison)
     size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
     
-    # Step 5: Validate stock
+    # Validate stock
     if not size_inv or size_inv.quantity < 1:
         flash(f"Size {selected_size} of {shoe.name} is out of stock", 'danger')
         return redirect(url_for('index'))
+    
+    # ... rest of your code (authentication/cart logic) ...
+
     
     # Step 6: Handle authentication
     if not current_user.is_authenticated:
