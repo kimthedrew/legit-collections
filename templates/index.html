@@ -63,7 +63,9 @@
                         {% set available_sizes = shoe.sizes|selectattr('quantity', 'gt', 0)|list %}
                         {% if available_sizes %}
                             <form method="POST" action="{{ url_for('add_to_cart', shoe_id=shoe.id) }}">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                {{ form.hidden_tag() }}  <!-- CSRF token -->
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                
                                 <div class="input-group">
                                     <select name="size" class="form-select" required>
                                         <option value="" disabled selected>Select size</option>
@@ -77,6 +79,15 @@
                                         <i class="bi bi-cart-plus"></i> Add
                                     </button>
                                 </div>
+                                
+                                <!-- Login reminder for unauthenticated users -->
+                                {% if not current_user.is_authenticated %}
+                                <div class="mt-2 text-center">
+                                    <small class="text-muted">
+                                        You need to <a href="{{ url_for('login') }}">log in</a> to add to cart
+                                    </small>
+                                </div>
+                                {% endif %}
                             </form>
                         {% else %}
                             <button class="btn btn-secondary w-100" disabled>
@@ -145,6 +156,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const productCards = document.querySelectorAll('.product-card');
     const productsContainer = document.getElementById('productsContainer');
     
+    // Add to cart form handling
+    const addToCartForms = document.querySelectorAll('form[action*="/add_to_cart"]');
+    
+    addToCartForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            // Check if user is authenticated using Flask-Login's pattern
+            const isAuthenticated = document.body.classList.contains('user-authenticated');
+            
+            if (!isAuthenticated) {
+                e.preventDefault();
+                
+                // Get form data
+                const formData = new FormData(this);
+                const size = formData.get('size');
+                const shoeId = this.action.split('/').filter(segment => segment).pop();
+                
+                // Store pending cart item
+                sessionStorage.setItem('pending_cart_item', JSON.stringify({
+                    shoe_id: shoeId,
+                    size: size
+                }));
+                
+                // Redirect to login with next parameter
+                const nextUrl = new URL(window.location.href);
+                window.location.href = "{{ url_for('login') }}?next=" + 
+                    encodeURIComponent(nextUrl.pathname + nextUrl.search);
+            }
+        });
+    });
+    
+    // Search functionality
     searchInput.addEventListener('input', function() {
         const searchTerm = searchInput.value.toLowerCase().trim();
         let hasVisibleItems = false;

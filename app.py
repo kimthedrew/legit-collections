@@ -163,18 +163,44 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html', form=form)
 
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     form = LoginForm()
+#     if form.validate_on_submit():
+#         user = User.query.filter_by(email=form.email.data).first()
+#         if user and user.verify_password(form.password.data):
+#             login_user(user)
+#             if user.is_admin:
+#                 return redirect(url_for('admin'))
+#             return redirect(url_for('index'))
+#         flash('Invalid email or password', 'danger')
+#     return render_template('login.html', form=form)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
+    next_url = request.args.get('next', url_for('index'))
+    
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and user.verify_password(form.password.data):
             login_user(user)
-            if user.is_admin:
-                return redirect(url_for('admin'))
-            return redirect(url_for('index'))
+            
+            # Handle pending cart items
+            pending_item = sessionStorage.getItem('pending_cart_item')
+            if pending_item:
+                try:
+                    cart = session.get('cart', [])
+                    cart.append(json.loads(pending_item))
+                    session['cart'] = cart
+                    sessionStorage.removeItem('pending_cart_item')
+                    flash('Item added to cart!', 'success')
+                except:
+                    flash('Could not add pending item to cart', 'warning')
+            
+            return redirect(next_url)
         flash('Invalid email or password', 'danger')
-    return render_template('login.html', form=form)
+    
+    return render_template('login.html', form=form, next=next_url)
 
 @app.route('/logout')
 @login_required
@@ -369,38 +395,58 @@ def verify_payment(order_id):
     
     return redirect(url_for('admin'))
 
-@app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
-@login_required
-def add_to_cart(shoe_id):
-    shoe = Shoe.query.get_or_404(shoe_id)
+# @app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
+# @login_required
+# def add_to_cart(shoe_id):
+#     shoe = Shoe.query.get_or_404(shoe_id)
     
-    # Get size from form data
-    selected_size = request.form.get('size')
+#     # Get size from form data
+#     selected_size = request.form.get('size')
     
-    if not selected_size:
-        flash('Please select a size', 'danger')
-        return redirect(url_for('index'))
+#     if not selected_size:
+#         flash('Please select a size', 'danger')
+#         return redirect(url_for('index'))
     
-    # Find the size inventory
-    size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
+#     # Find the size inventory
+#     size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
     
-    if not size_inv or size_inv.quantity < 1:
-        flash('This size is currently out of stock', 'danger')
-        return redirect(url_for('index'))
+#     if not size_inv or size_inv.quantity < 1:
+#         flash('This size is currently out of stock', 'danger')
+#         return redirect(url_for('index'))
     
-    cart = session.get('cart', [])
+#     cart = session.get('cart', [])
     
-    # Add item with size
-    cart.append({
-        'shoe_id': shoe_id,
-        'size': selected_size
-    })
+#     # Add item with size
+#     cart.append({
+#         'shoe_id': shoe_id,
+#         'size': selected_size
+#     })
     
-    session['cart'] = cart
-    session.modified = True  # Explicitly mark session as modified
-    flash('Item added to cart', 'success')
-    return redirect(url_for('index'))
+#     session['cart'] = cart
+#     session.modified = True  # Explicitly mark session as modified
+#     flash('Item added to cart', 'success')
+#     return redirect(url_for('index'))
 
+@app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
+def add_to_cart(shoe_id):
+    # First check if user is logged in
+    if not current_user.is_authenticated:
+        flash('Please log in to add items to your cart', 'danger')
+        return redirect(url_for('login'))
+    
+    # Then process the form
+    form = AddToCartForm()
+    if form.validate_on_submit():
+        shoe = Shoe.query.get_or_404(shoe_id)
+        selected_size = form.size.data
+        
+        # Rest of your processing...
+        # ...
+        return redirect(url_for('index'))
+    
+    # If form validation fails
+    flash('Error adding to cart. Please try again.', 'danger')
+    return redirect(url_for('index'))
 
 @app.route('/remove_from_cart/<int:index>', methods=['POST'])
 @login_required
