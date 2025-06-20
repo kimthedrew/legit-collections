@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     addToCartForms.forEach(form => {
         form.addEventListener('submit', function(e) {
-            // Check if user is authenticated using Flask-Login's pattern
+            // Check if user is authenticated using body class
             const isAuthenticated = document.body.classList.contains('user-authenticated');
             
             if (!isAuthenticated) {
@@ -172,13 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const size = formData.get('size');
                 const shoeId = this.action.split('/').filter(segment => segment).pop();
                 
-                // Store pending cart item
-                sessionStorage.setItem('pending_cart_item', JSON.stringify({
-                    shoe_id: shoeId,
-                    size: size
-                }));
+                // Disable button during redirect
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Redirecting...';
+                }
                 
-                // Redirect to login with next parameter
+                // Redirect to login
                 const nextUrl = new URL(window.location.href);
                 window.location.href = "{{ url_for('login') }}?next=" + 
                     encodeURIComponent(nextUrl.pathname + nextUrl.search);

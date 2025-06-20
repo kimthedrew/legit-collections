@@ -217,18 +217,26 @@ def login():
         if user and user.verify_password(form.password.data):
             login_user(user)
             
-            # Handle pending cart items
-            pending_item = sessionStorage.getItem('pending_cart_item')
-            if pending_item:
+            # Handle pending cart items from Flask session
+            if 'pending_cart_item' in session:
+                item = session.pop('pending_cart_item')
+                
+                # Validate and add to cart
                 try:
-                    cart = session.get('cart', [])
-                    cart.append(json.loads(pending_item))
-                    session['cart'] = cart
-                    sessionStorage.removeItem('pending_cart_item')
-                    flash('Item added to cart!', 'success')
-                except:
-                    flash('Could not add pending item to cart', 'warning')
-            
+                    shoe = Shoe.query.get(item.get('shoe_id'))
+                    if shoe:
+                        # Only add if size is still available
+                        size_inv = next((s for s in shoe.sizes if s.size == item.get('size') and s.quantity > 0), None)
+                        if size_inv:
+                            cart = session.get('cart', [])
+                            cart.append(item)
+                            session['cart'] = cart
+                            flash('Item added to cart!', 'success')
+                        else:
+                            flash('The selected size is no longer available', 'warning')
+                except Exception as e:
+                    app.logger.error(f"Error adding pending item: {str(e)}")
+                
             return redirect(next_url)
         flash('Invalid email or password', 'danger')
     
@@ -461,54 +469,45 @@ def verify_payment(order_id):
 
 @app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
 def add_to_cart(shoe_id):
-    # Step 1: Check if user is authenticated
-    if not current_user.is_authenticated:
-        flash('Please log in to add items to your cart', 'danger')
-        return redirect(url_for('login', next=request.url))
-    
-    # Step 2: Create form instance and validate
+    # Step 1: Create form instance and validate
     form = AddToCartForm(request.form)
     if not form.validate():
         flash('Invalid form submission. Please try again.', 'danger')
-        app.logger.warning(f"AddToCart form validation failed: {form.errors}")
         return redirect(url_for('index'))
     
-    # Step 3: Get selected size
+    # Step 2: Get selected size
     selected_size = form.size.data
     
-    # Step 4: Retrieve shoe with eager loading
+    # Step 3: Retrieve shoe with eager loading
     shoe = Shoe.query.options(db.joinedload(Shoe.sizes)).get_or_404(shoe_id)
     
-    # Step 5: Find size inventory
+    # Step 4: Find size inventory
     size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
     
-    # Step 6: Validate stock
+    # Step 5: Validate stock
     if not size_inv or size_inv.quantity < 1:
         flash(f"Size {selected_size} of {shoe.name} is out of stock", 'danger')
         return redirect(url_for('index'))
     
-    # Step 7: Add to cart
-    cart = session.get('cart', [])
+    # Step 6: Handle authentication
+    if not current_user.is_authenticated:
+        # Store in server session instead of sessionStorage
+        session['pending_cart_item'] = {
+            'shoe_id': shoe_id,
+            'size': selected_size
+        }
+        flash('Please log in to complete adding to cart', 'info')
+        return redirect(url_for('login', next=request.url))
     
-    # Create cart item structure
-    cart_item = {
+    # Step 7: Add to cart (authenticated user)
+    cart = session.get('cart', [])
+    cart.append({
         'shoe_id': shoe_id,
         'size': selected_size
-    }
-    
-    # Add to cart
-    cart.append(cart_item)
+    })
     session['cart'] = cart
-    
-    # Mark session as modified
-    session.modified = True
-    
-    # Step 8: Flash success message
     flash(f"{shoe.name} (Size {selected_size}) added to cart!", 'success')
-    
-    # Step 9: Redirect to next page or index
-    next_page = request.form.get('next', url_for('index'))
-    return redirect(next_page)
+    return redirect(request.form.get('next', url_for('index')))
 
 @app.route('/remove_from_cart/<int:index>', methods=['POST'])
 @login_required
