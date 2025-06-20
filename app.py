@@ -5,6 +5,7 @@ from flask_wtf.csrf import CSRFProtect
 from extensions import db
 from flask_migrate import Migrate
 from flask_caching import Cache
+from datetime import timedelta
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import os
