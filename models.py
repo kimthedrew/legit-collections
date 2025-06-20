@@ -52,7 +52,7 @@ class Order(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=False)
+    shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=True)
     size = db.Column(db.String(10), nullable=False)  # Add this
     payment_code = db.Column(db.String(50))
     phone_number = db.Column(db.String(20))
