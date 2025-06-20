@@ -63,7 +63,7 @@
                         {% set available_sizes = shoe.sizes|selectattr('quantity', 'gt', 0)|list %}
                         {% if available_sizes %}
                             <form method="POST" action="{{ url_for('add_to_cart', shoe_id=shoe.id) }}">
-                                {{ form.hidden_tag() }}  <!-- CSRF token -->
+                                {{ shoe.form.hidden_tag() }}  <!-- CSRF token -->
                                 <input type="hidden" name="next" value="{{ request.path }}">
                                 
                                 <div class="input-group">
