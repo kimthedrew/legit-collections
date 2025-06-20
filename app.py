@@ -483,21 +483,20 @@ def add_to_cart(shoe_id):
         return redirect(url_for('index'))
     
     # Get selected size and convert to int
-    try:
-        selected_size = int(form.size.data)  # Convert string to int
-    except ValueError:
-        flash('Invalid size selection', 'danger')
-        return redirect(url_for('index'))
-    
-    # Find size inventory (use integer for comparison)
-    size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
-    
+    # try:
+    #     selected_size = int(form.size.data)  # Convert string to int
+    # except ValueError:
+    #     flash('Invalid size selection', 'danger')
+    #     return redirect(url_for('index'))
+    # Convert selected size to int
+    # Instead of converting to int, keep as string
+    selected_size = form.size.data  # Keep as string
+    size_inv = next((s for s in shoe.sizes if str(s.size) == selected_size), None)
     # Validate stock
     if not size_inv or size_inv.quantity < 1:
         flash(f"Size {selected_size} of {shoe.name} is out of stock", 'danger')
         return redirect(url_for('index'))
-    
-    # ... rest of your code (authentication/cart logic) ...
+
 
     
     # Step 6: Handle authentication
