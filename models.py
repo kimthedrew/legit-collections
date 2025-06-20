@@ -34,9 +34,12 @@ class Shoe(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.Float, nullable=False)
+    # price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
     image_url = db.Column(db.String(300))
+    @property
+    def formatted_price(self):
+        return f"${self.price:.2f}" if self.price else "N/A"
     # Remove stock field since we're tracking by size now
     category = db.Column(db.String(50), default='Shoes')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
