@@ -46,8 +46,8 @@ def create_app():
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_TYPE='redis' if os.getenv('REDIS_URL') else 'filesystem',
         SESSION_PERMANENT=True,
-        SESSION_USE_SIGNER=True,
-        PERMANENT_SESSION_LIFETIME=timedelta(days=7)
+        SESSION_USE_SIGNER=True
+        # PERMANENT_SESSION_LIFETIME=timedelta(days=7)
     )
 
     # Configure Redis if available
