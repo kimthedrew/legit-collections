@@ -44,7 +44,7 @@
                     <p class="card-text">{{ shoe.description|truncate(100) }}</p>
                     
                     <div class="d-flex justify-content-between align-items-center mt-auto">
-                        <h4 class="text-danger">{{ shoe.formatted_price }}</h4>
+                        <h4 class="text-danger">{{ shoe.price }}</h4>
                         
                         <!-- Show total stock available -->
                         {% if shoe.total_stock > 0 %}
