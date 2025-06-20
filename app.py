@@ -128,31 +128,21 @@ def load_user(user_id):
 def index():
     page = request.args.get('page', 1, type=int)
     
-    # Create a cache key that includes the page number
-    cache_key = f"index_page_{page}"
-    cached_response = cache.get(cache_key)
-    
-    if cached_response:
-        return cached_response
-    
     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
                      .order_by(Shoe.id.desc())\
                      .paginate(page=page, per_page=9)
     
     forms_dict = {}
-    for shoe in shoes:
+    for shoe in shoes.items:  # Note: use shoes.items for paginated results
         form = AddToCartForm()
         form.size.choices = [(str(size.size), str(size.size)) for size in shoe.sizes]
         forms_dict[shoe.id] = form
     
-    # Process shoes (same as before)
+    # Process shoes
     for shoe in shoes.items:
         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
-        # ... rest of your processing ...
-
-    rendered = render_template('index.html', shoes=shoes, forms_dict=forms_dict)
-    cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
-    return rendered
+    
+    return render_template('index.html', shoes=shoes, forms_dict=forms_dict)
 
 # @app.route('/')
 # def index():
