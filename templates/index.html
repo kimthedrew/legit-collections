@@ -62,23 +62,23 @@
                     <div class="mt-3">
                         {% set available_sizes = shoe.sizes|selectattr('quantity', 'gt', 0)|list %}
                         {% if available_sizes %}
-                            <form method="POST" action="{{ url_for('add_to_cart', shoe_id=shoe.id) }}">
-                                {{ shoe.form.hidden_tag() }}  <!-- CSRF token -->
-                                <input type="hidden" name="next" value="{{ request.path }}">
-                                
-                                <div class="input-group">
-                                    <select name="size" class="form-select" required>
-                                        <option value="" disabled selected>Select size</option>
-                                        {% for size in shoe.sizes if size.quantity > 0 %}
-                                            <option value="{{ size.size }}">
-                                                {{ size.size }} ({{ size.quantity }} left)
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-cart-plus"></i> Add
-                                    </button>
-                                </div>
+                        <form method="POST" action="{{ url_for('add_to_cart', shoe_id=shoe.id) }}">
+                            {{ forms_dict[shoe.id].hidden_tag() }}  <!-- CSRF token -->
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            
+                            <div class="input-group">
+                                <select name="size" class="form-select" required>
+                                    <option value="" disabled selected>Select size</option>
+                                    {% for size in shoe.sizes if size.quantity > 0 %}
+                                        <option value="{{ size.size }}">
+                                            {{ size.size }} ({{ size.quantity }} left)
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-cart-plus"></i> Add
+                                </button>
+                            </div>
                                 
                                 <!-- Login reminder for unauthenticated users -->
                                 {% if not current_user.is_authenticated %}

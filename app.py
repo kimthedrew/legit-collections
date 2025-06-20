@@ -45,8 +45,9 @@ def create_app():
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_TYPE='redis' if os.getenv('REDIS_URL') else 'filesystem',
-        SESSION_PERMANENT=False,
-        SESSION_USE_SIGNER=True
+        SESSION_PERMANENT=True,
+        SESSION_USE_SIGNER=True,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7)
     )
 
     # Configure Redis if available
@@ -123,28 +124,59 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Routes
+# @app.route('/')
+# def index():
+#     page = request.args.get('page', 1, type=int)
+    
+#     # Create a cache key that includes the page number
+#     cache_key = f"index_page_{page}"
+#     cached_response = cache.get(cache_key)
+    
+#     if cached_response:
+#         return cached_response
+    
+#     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
+#                      .order_by(Shoe.id.desc())\
+#                      .paginate(page=page, per_page=9)
+    
+#     # Process shoes (same as before)
+#     for shoe in shoes.items:
+#         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
+#         # ... rest of your processing ...
+
+#     rendered = render_template('index.html', shoes=shoes)
+#     cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
+#     return rendered
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
-    
-    # Create a cache key that includes the page number
     cache_key = f"index_page_{page}"
-    cached_response = cache.get(cache_key)
     
-    if cached_response:
-        return cached_response
+    if cache.get(cache_key):
+        return cache.get(cache_key)
     
     shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
                      .order_by(Shoe.id.desc())\
                      .paginate(page=page, per_page=9)
     
-    # Process shoes (same as before)
+    # Create forms dictionary
+    forms_dict = {}
+    
     for shoe in shoes.items:
         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
-        # ... rest of your processing ...
-
-    rendered = render_template('index.html', shoes=shoes)
-    cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
+        
+        # Format price
+        if isinstance(shoe.price, (float, int)):
+            shoe.formatted_price = f"Ksh{shoe.price:.2f}"
+        else:
+            shoe.formatted_price = f"Ksh{shoe.price}"
+            
+        # Create form instance for this shoe
+        forms_dict[shoe.id] = AddToCartForm()
+    
+    rendered = render_template('index.html', shoes=shoes, forms_dict=forms_dict)
+    cache.set(cache_key, rendered, timeout=300)
     return rendered
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -429,24 +461,54 @@ def verify_payment(order_id):
 
 @app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
 def add_to_cart(shoe_id):
-    # First check if user is logged in
+    # Step 1: Check if user is authenticated
     if not current_user.is_authenticated:
         flash('Please log in to add items to your cart', 'danger')
-        return redirect(url_for('login'))
+        return redirect(url_for('login', next=request.url))
     
-    # Then process the form
-    form = AddToCartForm()
-    if form.validate_on_submit():
-        shoe = Shoe.query.get_or_404(shoe_id)
-        selected_size = form.size.data
-        
-        # Rest of your processing...
-        # ...
+    # Step 2: Create form instance and validate
+    form = AddToCartForm(request.form)
+    if not form.validate():
+        flash('Invalid form submission. Please try again.', 'danger')
+        app.logger.warning(f"AddToCart form validation failed: {form.errors}")
         return redirect(url_for('index'))
     
-    # If form validation fails
-    flash('Error adding to cart. Please try again.', 'danger')
-    return redirect(url_for('index'))
+    # Step 3: Get selected size
+    selected_size = form.size.data
+    
+    # Step 4: Retrieve shoe with eager loading
+    shoe = Shoe.query.options(db.joinedload(Shoe.sizes)).get_or_404(shoe_id)
+    
+    # Step 5: Find size inventory
+    size_inv = next((s for s in shoe.sizes if s.size == selected_size), None)
+    
+    # Step 6: Validate stock
+    if not size_inv or size_inv.quantity < 1:
+        flash(f"Size {selected_size} of {shoe.name} is out of stock", 'danger')
+        return redirect(url_for('index'))
+    
+    # Step 7: Add to cart
+    cart = session.get('cart', [])
+    
+    # Create cart item structure
+    cart_item = {
+        'shoe_id': shoe_id,
+        'size': selected_size
+    }
+    
+    # Add to cart
+    cart.append(cart_item)
+    session['cart'] = cart
+    
+    # Mark session as modified
+    session.modified = True
+    
+    # Step 8: Flash success message
+    flash(f"{shoe.name} (Size {selected_size}) added to cart!", 'success')
+    
+    # Step 9: Redirect to next page or index
+    next_page = request.form.get('next', url_for('index'))
+    return redirect(next_page)
 
 @app.route('/remove_from_cart/<int:index>', methods=['POST'])
 @login_required
