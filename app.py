@@ -139,12 +139,18 @@ def index():
                      .order_by(Shoe.id.desc())\
                      .paginate(page=page, per_page=9)
     
+    forms_dict = {}
+    for shoe in shoes:
+        form = AddToCartForm()
+        form.size.choices = [(str(size.size), str(size.size)) for size in shoe.sizes]
+        forms_dict[shoe.id] = form
+    
     # Process shoes (same as before)
     for shoe in shoes.items:
         shoe.total_stock = sum(size.quantity for size in shoe.sizes)
         # ... rest of your processing ...
 
-    rendered = render_template('index.html', shoes=shoes)
+    rendered = render_template('index.html', shoes=shoes, forms_dict=forms_dict)
     cache.set(cache_key, rendered, timeout=300)  # Cache with page-specific key
     return rendered
 
