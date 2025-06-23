@@ -16,19 +16,25 @@
                 {{ shoe.description|truncate(100) }}
             </p>
 
-            <!-- Stock Status -->
+            <!-- Stock Status - FIXED: Changed to total_stock -->
             <div class="d-flex justify-content-between align-items-center mb-3">
-                {% if shoe.stock > 0 %}
-                    <span class="badge bg-success">In Stock</span>
+                {% if shoe.total_stock > 0 %}
+                    <span class="badge bg-success">In Stock: {{ shoe.total_stock }}</span>
                 {% else %}
                     <span class="badge bg-secondary">Out of Stock</span>
                 {% endif %}
                 <span class="text-muted small">ID: {{ shoe.id }}</span>
             </div>
 
-            <!-- Price and Add to Cart -->
+            <!-- Price and Add to Cart - FIXED: Added currency formatting -->
             <div class="d-flex justify-content-between align-items-center">
-                <h4 class="text-primary mb-0">${{ shoe.price }}</h4>
+                <h4 class="text-primary mb-0">
+                    {% if shoe.price %}
+                        Ksh{{ '%.2f'|format(shoe.price) }}
+                    {% else %}
+                        Price unavailable
+                    {% endif %}
+                </h4>
                 {% if shoe.total_stock > 0 %}
                     <a href="{{ url_for('add_to_cart', shoe_id=shoe.id) }}" 
                        class="btn btn-primary">

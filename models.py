@@ -46,6 +46,9 @@ class Shoe(db.Model):
     
     # Relationship to sizes
     sizes = db.relationship('ShoeSize', backref='shoe', cascade='all, delete-orphan', lazy=True)
+    # @hybrid_property
+    # def total_stock(self):
+    #     return sum(size.quantity for size in self.sizes)
 
 class Order(db.Model):
     __tablename__ = 'orders'
