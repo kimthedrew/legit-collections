@@ -415,6 +415,11 @@ def delete_shoe(shoe_id):
         return redirect(url_for('index'))
     
     shoe = Shoe.query.get_or_404(shoe_id)
+
+    orders = Order.query.filter_by(shoe_id=shoe_id).all()
+    for order in orders:
+        order.shoe_id = None
+
     db.session.delete(shoe)
     db.session.commit()
     flash('Shoe deleted successfully!', 'success')
@@ -555,6 +560,8 @@ def view_cart():
             if isinstance(item, dict):
                 shoe = Shoe.query.get(item.get('shoe_id'))
                 if shoe:
+
+                    price = shoe.price if shoe.price else 0
                     cart_items.append({
                         'shoe': shoe,
                         'size': item.get('size', 'N/A'),
@@ -562,15 +569,15 @@ def view_cart():
                     })
                     total += shoe.price
             # Handle legacy format (shoe ID as integer)
-            elif isinstance(item, int):
-                shoe = Shoe.query.get(item)
-                if shoe:
-                    cart_items.append({
-                        'shoe': shoe,
-                        'size': 'Size not specified',
-                        'price': shoe.price
-                    })
-                    total += shoe.price
+            # elif isinstance(item, int):
+            #     shoe = Shoe.query.get(item)
+            #     if shoe:
+            #         cart_items.append({
+            #             'shoe': shoe,
+            #             'size': 'Size not specified',
+            #             'price': shoe.price
+            #         })
+            #         total += shoe.price
     
     form = PaymentForm()
     return render_template('cart.html', cart=cart_items, total=total, form=form)
@@ -654,6 +661,13 @@ def user_orders():
     orders = Order.query.filter_by(user_id=current_user.id) \
                        .order_by(Order.created_at.desc()) \
                        .all()
+    
+    for order in orders:
+        if order.shoe:
+            order.total_price = order.shoe.price
+        else:
+            order.total_price = 0
+
     return render_template('orders.html', orders=orders)
 
 @app.route('/search')
@@ -661,12 +675,14 @@ def search():
     query = request.args.get('q', '')
     page = request.args.get('page', 1, type=int)
     
-    results = Shoe.query.filter(
-        db.or_(
-            Shoe.name.ilike(f'%{query}%'),
-            Shoe.description.ilike(f'%{query}%')
-        )
-    ).paginate(page=page, per_page=9)
+    results = Shoe.query.options(db.joinedload(Shoe.sizes))\
+                        .filter(
+                            db.or_(
+                                Shoe.name.ilike(f'%{query}%'),
+                                Shoe.description.ilike(f'%{query}%'),
+                                Shoe.category.ilike(f'%{query}%')
+                            )
+                        ).paginate(page=page, per_page=9)
     
     return render_template('search.html', results=results, query=query)
 

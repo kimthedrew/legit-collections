@@ -2,6 +2,8 @@ from flask_login import UserMixin
 from extensions import db
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, func
 # from flask_session import SqlAlchemySessionInterface
 
 bcrypt = Bcrypt()
@@ -46,10 +48,20 @@ class Shoe(db.Model):
     
     # Relationship to sizes
     sizes = db.relationship('ShoeSize', backref='shoe', cascade='all, delete-orphan', lazy=True)
-    # @hybrid_property
-    # def total_stock(self):
-    #     return sum(size.quantity for size in self.sizes)
-
+    @hybrid_property
+    def total_stock(self):
+        """Calculate total stock by summing quantities of all sizes"""
+        return sum(size.quantity for size in self.sizes)
+    
+    @total_stock.expression
+    def total_stock(cls):
+        """Database-level expression for efficient querying"""
+        return (
+            select(func.sum(ShoeSize.quantity))
+            .where(ShoeSize.shoe_id == cls.id)
+            .label('total_stock')
+        )
+    
 class Order(db.Model):
     __tablename__ = 'orders'
     
