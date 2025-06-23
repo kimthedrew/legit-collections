@@ -35,22 +35,36 @@
                                 Placed on {{ order.created_at.strftime('%b %d, %Y %I:%M %p') }}
                             </small>
                         </div>
-                        <span class="h5 text-primary">Ksh{{ "%.2f"|format(order.shoe.price) }}</span>
+                        <!-- FIXED: Handle missing shoe -->
+                        <span class="h5 text-primary">
+                            {% if order.shoe %}
+                                Ksh{{ "%.2f"|format(order.shoe.price) }}
+                            {% else %}
+                                Price unavailable
+                            {% endif %}
+                        </span>
                     </div>
 
                     <div class="row g-3">
-                        <!-- Product Info -->
+                        <!-- Product Info - FIXED: Handle missing shoe -->
                         <div class="col-md-4">
                             <div class="d-flex align-items-center">
-                                <img src="{{ order.shoe.image_url }}" 
-                                     class="img-fluid rounded me-3" 
-                                     style="max-width: 100px"
-                                     alt="{{ order.shoe.name }}"
-                                     loading="lazy">
-                                <div>
-                                    <h6 class="mb-1">{{ order.shoe.name }}</h6>
-                                    <small class="text-muted">Size: {{ order.shoe.size }}</small>
-                                </div>
+                                {% if order.shoe %}
+                                    <img src="{{ order.shoe.image_url }}" 
+                                         class="img-fluid rounded me-3" 
+                                         style="max-width: 100px"
+                                         alt="{{ order.shoe.name }}"
+                                         loading="lazy">
+                                    <div>
+                                        <h6 class="mb-1">{{ order.shoe.name }}</h6>
+                                        <small class="text-muted">Size: {{ order.size }}</small>
+                                    </div>
+                                {% else %}
+                                    <div>
+                                        <h6 class="mb-1">Product no longer available</h6>
+                                        <small class="text-muted">Size: {{ order.size }}</small>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
 
