@@ -9,10 +9,6 @@
                     <div class="text-center mb-4">
                         <h2 class="mb-3">Welcome Back</h2>
                         <p class="text-muted">Sign in to continue</p>
-                        <!-- Admin Login Notice -->
-                        <div class="alert alert-warning small py-2 mt-3">
-                            <i class="bi bi-shield-lock"></i> Admins use regular credentials
-                        </div>
                     </div>
 
                     <form method="POST" action="{{ url_for('login') }}">
@@ -26,7 +22,7 @@
                                     <i class="bi bi-envelope"></i>
                                 </span>
                                 {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), 
-                                   placeholder="admin@example.com") }}
+                                   placeholder="your email address") }}
                             </div>
                             {% for error in form.email.errors %}
                             <div class="invalid-feedback d-block">
@@ -43,7 +39,7 @@
                                     <i class="bi bi-lock"></i>
                                 </span>
                                 {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), 
-                                   placeholder="Admin password") }}
+                                   placeholder="your password") }}
                             </div>
                             {% for error in form.password.errors %}
                             <div class="invalid-feedback d-block">
