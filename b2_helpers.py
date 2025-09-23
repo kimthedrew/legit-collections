@@ -1,5 +1,5 @@
 from b2sdk.v2 import B2Api, InMemoryAccountInfo, UploadSourceBytes
-from b2sdk.exception import B2SimpleError
+from b2sdk.v2.exception import B2SimpleError
 from flask import current_app
 import logging
 import traceback
