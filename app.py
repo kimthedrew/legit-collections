@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 import os
 import re
 import logging
-import redis
 from flask_session import Session
 
 # Load environment variables
@@ -54,7 +53,13 @@ def create_app():
     # Configure Redis if available
     redis_url = os.getenv('REDIS_URL')
     if redis_url:
-        app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+        try:
+            import redis
+            app.config['SESSION_REDIS'] = redis.from_url(redis_url)
+        except ImportError:
+            # Fallback to filesystem sessions if redis is not available
+            app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
+            os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
     else:
         # Fallback to filesystem sessions in development
         app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
