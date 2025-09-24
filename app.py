@@ -11,7 +11,12 @@ from dotenv import load_dotenv
 import os
 import re
 import logging
-from flask_session import Session
+# Import flask_session conditionally
+try:
+    from flask_session import Session
+    SESSION_AVAILABLE = True
+except ImportError:
+    SESSION_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -78,8 +83,9 @@ def create_app():
     migrate.init_app(app, db)
     cache.init_app(app)
     
-    # Initialize Flask-Session after setting config
-    Session(app)
+    # Initialize Flask-Session after setting config (if available)
+    if SESSION_AVAILABLE:
+        Session(app)
     
     login_manager.login_view = 'login'
 
