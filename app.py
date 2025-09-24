@@ -109,7 +109,14 @@ from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeFo
 # Import models after app creation
 from models import User, Shoe, Order, ShoeSize
 
-from b2_helpers import upload_to_b2
+# Import b2_helpers conditionally
+try:
+    from b2_helpers import upload_to_b2
+    B2_AVAILABLE = True
+except ImportError:
+    B2_AVAILABLE = False
+    def upload_to_b2(file, filename):
+        return None  # Fallback function
 
 def allowed_file(filename):
     """Check if the file has an allowed extension"""
@@ -293,10 +300,13 @@ def add_shoe():
                     return redirect(url_for('admin'))
                 
                 filename = secure_filename(file.filename)
-                image_url = upload_to_b2(file, filename)
-                
-                if not image_url:
-                    flash('B2 upload failed', 'danger')
+                if B2_AVAILABLE:
+                    image_url = upload_to_b2(file, filename)
+                    if not image_url:
+                        flash('B2 upload failed', 'danger')
+                        return redirect(url_for('admin'))
+                else:
+                    flash('File upload service not available. Please use image URL instead.', 'warning')
                     return redirect(url_for('admin'))
                     
             # If no file was uploaded but a URL was provided
@@ -394,7 +404,11 @@ def update_shoe(shoe_id):
                 
                 if allowed_file(file.filename):
                     filename = secure_filename(file.filename)
-                    new_image_url = upload_to_b2(file, filename)
+                    if B2_AVAILABLE:
+                        new_image_url = upload_to_b2(file, filename)
+                    else:
+                        flash('File upload service not available. Please use image URL instead.', 'warning')
+                        return redirect(url_for('admin'))
                 else:
                     flash('Invalid file type for uploaded image', 'danger')
                     return redirect(url_for('admin'))
