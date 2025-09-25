@@ -274,16 +274,39 @@ def admin():
         return redirect(url_for('index'))
     
     form = ShoeForm()
-    orders = Order.query.all()
-    shoes = Shoe.query.all()
     size_form = ShoeSizeForm()
-    return render_template('admin.html', orders=orders, shoes=shoes, form=form, size_form=size_form)
+    
+    # Filter data based on admin type
+    if current_user.is_super_admin():
+        # Super admin sees all orders and shoes
+        orders = Order.query.all()
+        shoes = Shoe.query.all()
+        admin_type = 'super_admin'
+    elif current_user.is_limited_admin():
+        # Limited admin sees only their own products and related orders
+        shoes = Shoe.query.filter_by(created_by=current_user.id).all()
+        # Get orders for shoes created by this admin
+        shoe_ids = [shoe.id for shoe in shoes]
+        orders = Order.query.filter(Order.shoe_id.in_(shoe_ids)).all() if shoe_ids else []
+        admin_type = 'limited_admin'
+    else:
+        # Fallback for regular admin (backward compatibility)
+        orders = Order.query.all()
+        shoes = Shoe.query.all()
+        admin_type = 'admin'
+    
+    return render_template('admin.html', orders=orders, shoes=shoes, form=form, size_form=size_form, admin_type=admin_type)
 
 @app.route('/admin/add_shoe', methods=['POST'])
 @login_required
 def add_shoe():
     if not current_user.is_admin:
         return redirect(url_for('index'))
+    
+    # Check if user can add more products
+    if not current_user.can_add_product():
+        flash(f'You have reached your product limit of {current_user.product_limit} products.', 'warning')
+        return redirect(url_for('admin'))
     
     form = ShoeForm()
     
@@ -324,7 +347,8 @@ def add_shoe():
                 price=form.price.data,
                 description=form.description.data,
                 image_url=image_url,
-                category=form.category.data
+                category=form.category.data,
+                created_by=current_user.id
             )
             
             db.session.add(new_shoe)
@@ -351,6 +375,11 @@ def manage_shoe_sizes(shoe_id):
         return redirect(url_for('index'))
     
     shoe = Shoe.query.get_or_404(shoe_id)
+    
+    # Check if limited admin can manage this shoe
+    if current_user.is_limited_admin() and shoe.created_by != current_user.id:
+        flash('You can only manage your own products.', 'danger')
+        return redirect(url_for('admin'))
     form = ShoeSizeForm()
     
     if form.validate_on_submit():
@@ -374,6 +403,11 @@ def delete_size(size_id):
     
     size = ShoeSize.query.get_or_404(size_id)
     shoe_id = size.shoe_id
+    
+    # Check if limited admin can manage this shoe
+    if current_user.is_limited_admin() and size.shoe.created_by != current_user.id:
+        flash('You can only manage your own products.', 'danger')
+        return redirect(url_for('admin'))
     db.session.delete(size)
     db.session.commit()
     flash('Size deleted successfully!', 'success')
@@ -386,6 +420,11 @@ def update_shoe(shoe_id):
         return redirect(url_for('index'))
     
     shoe = Shoe.query.get_or_404(shoe_id)
+    
+    # Check if limited admin can manage this shoe
+    if current_user.is_limited_admin() and shoe.created_by != current_user.id:
+        flash('You can only manage your own products.', 'danger')
+        return redirect(url_for('admin'))
     form = ShoeForm(obj=shoe)
     
     if form.validate_on_submit():
@@ -440,6 +479,11 @@ def delete_shoe(shoe_id):
         return redirect(url_for('index'))
     
     shoe = Shoe.query.get_or_404(shoe_id)
+    
+    # Check if limited admin can manage this shoe
+    if current_user.is_limited_admin() and shoe.created_by != current_user.id:
+        flash('You can only manage your own products.', 'danger')
+        return redirect(url_for('admin'))
 
     orders = Order.query.filter_by(shoe_id=shoe_id).all()
     for order in orders:
@@ -449,6 +493,50 @@ def delete_shoe(shoe_id):
     db.session.commit()
     flash('Shoe deleted successfully!', 'success')
     return redirect(url_for('admin'))
+
+@app.route('/admin/create_limited_admin', methods=['GET', 'POST'])
+@login_required
+def create_limited_admin():
+    if not current_user.is_super_admin():
+        flash('Only super admins can create limited admins.', 'danger')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        name = request.form.get('name')
+        password = request.form.get('password')
+        address = request.form.get('address', '')
+        
+        if not all([email, name, password]):
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('create_limited_admin'))
+        
+        # Check if user already exists
+        if User.query.filter_by(email=email).first():
+            flash('User with this email already exists.', 'danger')
+            return redirect(url_for('create_limited_admin'))
+        
+        # Create limited admin
+        limited_admin = User(
+            email=email,
+            password=password,
+            name=name,
+            address=address,
+            is_admin=True,
+            admin_type='limited_admin',
+            product_limit=3
+        )
+        
+        try:
+            db.session.add(limited_admin)
+            db.session.commit()
+            flash(f'Limited admin {name} created successfully!', 'success')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating limited admin: {str(e)}', 'danger')
+    
+    return render_template('create_limited_admin.html')
 
 @app.route('/admin/verify_payment/<int:order_id>', methods=['POST'])
 @login_required

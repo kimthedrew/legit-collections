@@ -17,6 +17,8 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.String(200))
     is_admin = db.Column(db.Boolean, default=False)
+    admin_type = db.Column(db.String(20), default='user')  # 'user', 'limited_admin', 'super_admin'
+    product_limit = db.Column(db.Integer, default=0)  # 0 = unlimited, 3 = limited
     # orders = db.relationship('Order', backref='user', lazy=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -30,6 +32,30 @@ class User(UserMixin, db.Model):
 
     def verify_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
+    
+    def is_super_admin(self):
+        """Check if user is a super admin"""
+        return self.is_admin and self.admin_type == 'super_admin'
+    
+    def is_limited_admin(self):
+        """Check if user is a limited admin"""
+        return self.is_admin and self.admin_type == 'limited_admin'
+    
+    def can_add_product(self):
+        """Check if user can add more products"""
+        if self.is_super_admin():
+            return True
+        elif self.is_limited_admin():
+            # Count products created by this user
+            from sqlalchemy import func
+            product_count = db.session.query(func.count(Shoe.id)).filter_by(created_by=self.id).scalar()
+            return product_count < self.product_limit
+        return False
+    
+    def get_product_count(self):
+        """Get the number of products created by this user"""
+        from sqlalchemy import func
+        return db.session.query(func.count(Shoe.id)).filter_by(created_by=self.id).scalar() or 0
 
 class Shoe(db.Model):
     __tablename__ = 'shoes'
@@ -44,6 +70,7 @@ class Shoe(db.Model):
     #     return f"${self.price:.2f}" if self.price else "N/A"
     # Remove stock field since we're tracking by size now
     category = db.Column(db.String(50), default='Shoes')
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Track who created the shoe
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship to sizes
