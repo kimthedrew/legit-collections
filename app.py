@@ -1112,13 +1112,15 @@ if __name__ == '__main__':
     
     # Run the app
     if is_production:
+        # Get port from environment variable or default to 8000
+        port = int(os.getenv('PORT', 8000))
         # For production, try waitress first, fallback to Flask server
         try:
             from waitress import serve
-            serve(app, host="0.0.0.0", port=8080)
+            serve(app, host="0.0.0.0", port=port)
         except ImportError:
             # Fallback to Flask's built-in server if waitress is not available
-            app.run(host="0.0.0.0", port=8080, debug=False)
+            app.run(host="0.0.0.0", port=port, debug=False)
     else:
         # For development, use Flask's built-in server
         app.config['GUNICORN_TIMEOUT'] = 120
