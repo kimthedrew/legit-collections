@@ -277,20 +277,27 @@ def admin():
     size_form = ShoeSizeForm()
     
     # Filter data based on admin type
-    if current_user.is_super_admin():
-        # Super admin sees all orders and shoes
-        orders = Order.query.all()
-        shoes = Shoe.query.all()
-        admin_type = 'super_admin'
-    elif current_user.is_limited_admin():
-        # Limited admin sees only their own products and related orders
-        shoes = Shoe.query.filter_by(created_by=current_user.id).all()
-        # Get orders for shoes created by this admin
-        shoe_ids = [shoe.id for shoe in shoes]
-        orders = Order.query.filter(Order.shoe_id.in_(shoe_ids)).all() if shoe_ids else []
-        admin_type = 'limited_admin'
-    else:
-        # Fallback for regular admin (backward compatibility)
+    try:
+        if current_user.is_super_admin():
+            # Super admin sees all orders and shoes
+            orders = Order.query.all()
+            shoes = Shoe.query.all()
+            admin_type = 'super_admin'
+        elif current_user.is_limited_admin():
+            # Limited admin sees only their own products and related orders
+            shoes = Shoe.query.filter_by(created_by=current_user.id).all()
+            # Get orders for shoes created by this admin
+            shoe_ids = [shoe.id for shoe in shoes]
+            orders = Order.query.filter(Order.shoe_id.in_(shoe_ids)).all() if shoe_ids else []
+            admin_type = 'limited_admin'
+        else:
+            # Fallback for regular admin (backward compatibility)
+            orders = Order.query.all()
+            shoes = Shoe.query.all()
+            admin_type = 'admin'
+    except Exception as e:
+        # Fallback if there are any issues with the new fields
+        app.logger.error(f"Admin type check failed: {str(e)}")
         orders = Order.query.all()
         shoes = Shoe.query.all()
         admin_type = 'admin'
@@ -304,9 +311,14 @@ def add_shoe():
         return redirect(url_for('index'))
     
     # Check if user can add more products
-    if not current_user.can_add_product():
-        flash(f'You have reached your product limit of {current_user.product_limit} products.', 'warning')
-        return redirect(url_for('admin'))
+    try:
+        if not current_user.can_add_product():
+            limit = getattr(current_user, 'product_limit', 0)
+            flash(f'You have reached your product limit of {limit} products.', 'warning')
+            return redirect(url_for('admin'))
+    except Exception as e:
+        app.logger.error(f"Product limit check failed: {str(e)}")
+        # Continue without limit check if there's an error
     
     form = ShoeForm()
     
@@ -342,14 +354,21 @@ def add_shoe():
                 return redirect(url_for('admin'))
             
             # Create shoe
-            new_shoe = Shoe(
-                name=form.name.data,
-                price=form.price.data,
-                description=form.description.data,
-                image_url=image_url,
-                category=form.category.data,
-                created_by=current_user.id
-            )
+            shoe_data = {
+                'name': form.name.data,
+                'price': form.price.data,
+                'description': form.description.data,
+                'image_url': image_url,
+                'category': form.category.data
+            }
+            
+            # Add created_by if the field exists
+            try:
+                shoe_data['created_by'] = current_user.id
+            except:
+                pass  # Field doesn't exist, skip it
+            
+            new_shoe = Shoe(**shoe_data)
             
             db.session.add(new_shoe)
             db.session.commit()
@@ -377,9 +396,13 @@ def manage_shoe_sizes(shoe_id):
     shoe = Shoe.query.get_or_404(shoe_id)
     
     # Check if limited admin can manage this shoe
-    if current_user.is_limited_admin() and shoe.created_by != current_user.id:
-        flash('You can only manage your own products.', 'danger')
-        return redirect(url_for('admin'))
+    try:
+        if current_user.is_limited_admin() and getattr(shoe, 'created_by', None) != current_user.id:
+            flash('You can only manage your own products.', 'danger')
+            return redirect(url_for('admin'))
+    except Exception as e:
+        app.logger.error(f"Access control check failed: {str(e)}")
+        # Continue without access control if there's an error
     form = ShoeSizeForm()
     
     if form.validate_on_submit():

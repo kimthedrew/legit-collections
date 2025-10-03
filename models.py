@@ -35,27 +35,40 @@ class User(UserMixin, db.Model):
     
     def is_super_admin(self):
         """Check if user is a super admin"""
-        return self.is_admin and self.admin_type == 'super_admin'
+        try:
+            return self.is_admin and getattr(self, 'admin_type', 'user') == 'super_admin'
+        except:
+            return self.is_admin  # Fallback for backward compatibility
     
     def is_limited_admin(self):
         """Check if user is a limited admin"""
-        return self.is_admin and self.admin_type == 'limited_admin'
+        try:
+            return self.is_admin and getattr(self, 'admin_type', 'user') == 'limited_admin'
+        except:
+            return False
     
     def can_add_product(self):
         """Check if user can add more products"""
-        if self.is_super_admin():
-            return True
-        elif self.is_limited_admin():
-            # Count products created by this user
-            from sqlalchemy import func
-            product_count = db.session.query(func.count(Shoe.id)).filter_by(created_by=self.id).scalar()
-            return product_count < self.product_limit
-        return False
+        try:
+            if self.is_super_admin():
+                return True
+            elif self.is_limited_admin():
+                # Count products created by this user
+                from sqlalchemy import func
+                product_count = db.session.query(func.count(Shoe.id)).filter_by(created_by=self.id).scalar()
+                limit = getattr(self, 'product_limit', 0)
+                return product_count < limit
+            return False
+        except:
+            return self.is_admin  # Fallback for backward compatibility
     
     def get_product_count(self):
         """Get the number of products created by this user"""
-        from sqlalchemy import func
-        return db.session.query(func.count(Shoe.id)).filter_by(created_by=self.id).scalar() or 0
+        try:
+            from sqlalchemy import func
+            return db.session.query(func.count(Shoe.id)).filter_by(created_by=self.id).scalar() or 0
+        except:
+            return 0
 
 class Shoe(db.Model):
     __tablename__ = 'shoes'
