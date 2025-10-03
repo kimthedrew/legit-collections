@@ -1133,6 +1133,16 @@ if __name__ == '__main__':
     # Determine if we're in production
     is_production = os.getenv('ENV') == 'production'
     
+    # Force production mode if running on Koyeb (has PORT environment variable)
+    if os.getenv('PORT') and not is_production:
+        print("Detected Koyeb deployment, forcing production mode")
+        is_production = True
+    
+    # Debug logging
+    print(f"ENV variable: {os.getenv('ENV')}")
+    print(f"Is production: {is_production}")
+    print(f"PORT variable: {os.getenv('PORT')}")
+    
     # Run the app
     if is_production:
         # Get port from environment variable or default to 8000

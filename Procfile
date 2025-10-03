@@ -1,1 +1,1 @@
-web: ENV=production python init_db.py && python app.py
+web: python init_db.py && ENV=production python app.py
