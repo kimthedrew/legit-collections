@@ -1,9 +1,28 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, TextAreaField, IntegerField, FloatField, FileField, SelectField, DecimalField
-from wtforms.validators import DataRequired, Email, Length, ValidationError, Optional, NumberRange, Regexp, InputRequired
+from wtforms.validators import DataRequired, Length, ValidationError, Optional, NumberRange, Regexp, InputRequired
 from models import User
 from flask_wtf.file import FileAllowed
 from flask import request
+
+# Try to import Email validator, fallback to basic validation if not available
+try:
+    from wtforms.validators import Email
+    EMAIL_VALIDATOR_AVAILABLE = True
+except ImportError:
+    EMAIL_VALIDATOR_AVAILABLE = False
+    print("Warning: email-validator not available, using basic email validation")
+    
+    # Create a basic email validator as fallback
+    class Email:
+        def __init__(self, message=None):
+            self.message = message or 'Invalid email address.'
+        
+        def __call__(self, form, field):
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, field.data):
+                raise ValidationError(self.message)
 
 class RegistrationForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
