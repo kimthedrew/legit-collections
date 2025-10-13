@@ -20,13 +20,28 @@
                                 <div class="mb-4">
                                     <label class="form-label fw-bold">Choose Payment Method</label>
                                     
+                                    <!-- M-Pesa STK Push (Direct) -->
+                                    <div class="form-check mb-3 p-3 border rounded payment-option" data-method="mpesa_stk">
+                                        <input class="form-check-input" type="radio" name="payment_method" id="mpesa_stk" value="mpesa_stk" checked>
+                                        <label class="form-check-label w-100" for="mpesa_stk">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><i class="bi bi-phone-fill text-success"></i> M-Pesa STK Push</strong>
+                                                    <br>
+                                                    <small class="text-muted">Instant payment popup on your phone</small>
+                                                </div>
+                                                <span class="badge bg-success">Recommended</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    
                                     <!-- Pesapal Option (Online Payment) -->
                                     <div class="form-check mb-3 p-3 border rounded payment-option" data-method="pesapal">
-                                        <input class="form-check-input" type="radio" name="payment_method" id="pesapal" value="pesapal" checked>
+                                        <input class="form-check-input" type="radio" name="payment_method" id="pesapal" value="pesapal">
                                         <label class="form-check-label w-100" for="pesapal">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div>
-                                                    <strong><i class="bi bi-phone-fill text-success"></i> Pay with Pesapal</strong>
+                                                    <strong><i class="bi bi-credit-card text-info"></i> Pesapal Gateway</strong>
                                                     <br>
                                                     <small class="text-muted">M-Pesa, Card, Bank Transfer</small>
                                                 </div>
@@ -66,8 +81,42 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Pesapal Details (shown by default) -->
-                                <div id="pesapalDetails" class="payment-details">
+                                <!-- M-Pesa STK Push Details (shown by default) -->
+                                <div id="mpesaStkDetails" class="payment-details">
+                                    <div class="alert alert-success">
+                                        <i class="bi bi-phone-fill"></i>
+                                        <strong>Instant M-Pesa Payment</strong>
+                                        <ul class="mb-0 mt-2 small">
+                                            <li>Enter your M-Pesa phone number</li>
+                                            <li>You'll receive a payment prompt</li>
+                                            <li>Enter your M-Pesa PIN</li>
+                                            <li>Payment confirmed instantly!</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">M-Pesa Phone Number <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                            <input type="tel" name="mpesa_phone" class="form-control" 
+                                                   placeholder="254712345678" 
+                                                   pattern="254[0-9]{9}"
+                                                   title="Format: 254XXXXXXXXX"
+                                                   required>
+                                        </div>
+                                        <small class="text-muted">
+                                            Format: 254XXXXXXXXX (e.g., 254712345678)
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="alert alert-warning small">
+                                        <i class="bi bi-info-circle"></i>
+                                        Make sure your phone is on and you have your M-Pesa PIN ready. You have 60 seconds to complete the payment.
+                                    </div>
+                                </div>
+                                
+                                <!-- Pesapal Details (hidden by default) -->
+                                <div id="pesapalDetails" class="payment-details" style="display:none;">
                                     <div class="alert alert-info">
                                         <i class="bi bi-info-circle"></i>
                                         <strong>Quick & Secure Payment</strong>
@@ -197,6 +246,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const paymentOptions = document.querySelectorAll('input[name="payment_method"]');
+    const mpesaStkDetails = document.getElementById('mpesaStkDetails');
     const pesapalDetails = document.getElementById('pesapalDetails');
     const manualMpesaDetails = document.getElementById('manualMpesaDetails');
     const cashDetails = document.getElementById('cashDetails');
@@ -206,6 +256,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Payment method icons and labels
     const paymentConfig = {
+        mpesa_stk: {
+            text: '<i class="bi bi-phone-fill"></i> Pay with M-Pesa - Ksh{{ "%.2f"|format(total) }}',
+            icon: 'bi-phone-fill'
+        },
         pesapal: {
             text: '<i class="bi bi-lock-fill"></i> Pay Now - Ksh{{ "%.2f"|format(total) }}',
             icon: 'bi-lock-fill'
@@ -226,6 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const method = this.value;
             
             // Hide all payment details
+            mpesaStkDetails.style.display = 'none';
             pesapalDetails.style.display = 'none';
             manualMpesaDetails.style.display = 'none';
             cashDetails.style.display = 'none';
@@ -236,7 +291,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             // Show selected payment details
-            if (method === 'pesapal') {
+            if (method === 'mpesa_stk') {
+                mpesaStkDetails.style.display = 'block';
+                btnText.innerHTML = paymentConfig.mpesa_stk.text;
+            } else if (method === 'pesapal') {
                 pesapalDetails.style.display = 'block';
                 btnText.innerHTML = paymentConfig.pesapal.text;
             } else if (method === 'manual_mpesa') {
@@ -259,9 +317,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Form submission
     document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        const method = document.querySelector('input[name="payment_method"]:checked').value;
+        
         spinner.classList.remove('d-none');
         submitBtn.disabled = true;
-        btnText.innerHTML = '<span class="ms-2">Processing...</span>';
+        
+        if (method === 'mpesa_stk') {
+            btnText.innerHTML = '<span class="ms-2">Sending payment request...</span>';
+        } else {
+            btnText.innerHTML = '<span class="ms-2">Processing...</span>';
+        }
     });
 });
 </script>

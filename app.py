@@ -791,7 +791,58 @@ def checkout():
             db.session.commit()
             
             # Handle different payment methods
-            if payment_method == 'pesapal':
+            if payment_method == 'mpesa_stk':
+                # M-Pesa STK Push (Direct Daraja API)
+                try:
+                    from mpesa_helpers import initiate_stk_push, format_phone_number, validate_mpesa_credentials
+                    
+                    # Validate credentials
+                    is_valid, error_msg = validate_mpesa_credentials()
+                    if not is_valid:
+                        flash(f'M-Pesa not configured: {error_msg}. Please use another payment method.', 'warning')
+                        return redirect(url_for('view_cart'))
+                    
+                    # Get and format phone number
+                    mpesa_phone = request.form.get('mpesa_phone', '')
+                    formatted_phone = format_phone_number(mpesa_phone)
+                    
+                    # Use first order ID as primary reference
+                    primary_order_id = order_ids[0]
+                    
+                    # Prepare callback URL
+                    callback_url = url_for('mpesa_callback', _external=True)
+                    
+                    # Initiate STK Push
+                    result = initiate_stk_push(
+                        phone_number=formatted_phone,
+                        amount=total,
+                        account_reference=f"ORDER-{primary_order_id}",
+                        transaction_desc=f"LegitCollections Order #{primary_order_id}",
+                        callback_url=callback_url
+                    )
+                    
+                    if result.get('success'):
+                        # Update orders with checkout request ID
+                        for order_id in order_ids:
+                            order = Order.query.get(order_id)
+                            order.payment_transaction_id = result.get('checkout_request_id')
+                            order.payment_reference = result.get('merchant_request_id')
+                            order.phone_number = formatted_phone
+                        db.session.commit()
+                        
+                        # Show success message and redirect
+                        flash('Payment request sent! Please check your phone and enter your M-Pesa PIN.', 'info')
+                        return redirect(url_for('mpesa_payment_status', order_id=primary_order_id))
+                    else:
+                        flash(f"M-Pesa payment failed: {result.get('error')}", 'danger')
+                        return redirect(url_for('view_cart'))
+                        
+                except Exception as e:
+                    app.logger.error(f"M-Pesa STK Push error: {str(e)}")
+                    flash('M-Pesa service temporarily unavailable. Please try another payment method.', 'warning')
+                    return redirect(url_for('view_cart'))
+            
+            elif payment_method == 'pesapal':
                 # Pesapal Payment
                 try:
                     from pesapal_helpers import initiate_payment
@@ -948,6 +999,114 @@ def pesapal_callback():
         app.logger.error(f"Pesapal callback error: {str(e)}")
         flash('An error occurred while processing your payment', 'danger')
         return redirect(url_for('user_orders'))
+
+# M-Pesa Payment Status Page
+@app.route('/payment/mpesa/status/<int:order_id>')
+@login_required
+def mpesa_payment_status(order_id):
+    """Show M-Pesa payment status page while waiting for confirmation"""
+    order = Order.query.get_or_404(order_id)
+    
+    # Verify order belongs to current user
+    if order.user_id != current_user.id:
+        flash('Unauthorized access', 'danger')
+        return redirect(url_for('user_orders'))
+    
+    return render_template('mpesa_status.html', order=order)
+
+# M-Pesa Callback Endpoint
+@app.route('/mpesa/callback', methods=['POST'])
+def mpesa_callback():
+    """Handle M-Pesa STK Push callback"""
+    try:
+        data = request.json
+        app.logger.info(f"M-Pesa callback received: {data}")
+        
+        # Extract callback data
+        callback_data = data.get('Body', {}).get('stkCallback', {})
+        result_code = callback_data.get('ResultCode')
+        result_desc = callback_data.get('ResultDesc')
+        checkout_request_id = callback_data.get('CheckoutRequestID')
+        
+        # Find order by checkout request ID
+        orders = Order.query.filter_by(payment_transaction_id=checkout_request_id).all()
+        
+        if not orders:
+            app.logger.error(f"No orders found for CheckoutRequestID: {checkout_request_id}")
+            return jsonify({'ResultCode': 1, 'ResultDesc': 'Order not found'}), 200
+        
+        # Check if payment was successful
+        from mpesa_helpers import is_mpesa_payment_successful
+        
+        if is_mpesa_payment_successful(result_code):
+            # Payment successful - extract transaction details
+            callback_metadata = callback_data.get('CallbackMetadata', {}).get('Item', [])
+            
+            # Extract amount and receipt number
+            mpesa_receipt = None
+            amount_paid = None
+            phone_number = None
+            
+            for item in callback_metadata:
+                if item.get('Name') == 'MpesaReceiptNumber':
+                    mpesa_receipt = item.get('Value')
+                elif item.get('Name') == 'Amount':
+                    amount_paid = item.get('Value')
+                elif item.get('Name') == 'PhoneNumber':
+                    phone_number = item.get('Value')
+            
+            # Update all orders
+            for order in orders:
+                order.payment_status = 'Completed'
+                order.status = 'Processing'
+                order.payment_reference = mpesa_receipt
+                if amount_paid:
+                    order.amount = amount_paid
+                if phone_number:
+                    order.phone_number = str(phone_number)
+                
+                # Reduce stock
+                if order.size != 'Size not specified' and order.shoe:
+                    size_inv = next((s for s in order.shoe.sizes if s.size == order.size), None)
+                    if size_inv and size_inv.quantity > 0:
+                        size_inv.quantity -= 1
+            
+            db.session.commit()
+            app.logger.info(f"M-Pesa payment completed: Receipt {mpesa_receipt}")
+            
+        else:
+            # Payment failed or cancelled
+            for order in orders:
+                order.payment_status = 'Failed'
+                order.status = 'Cancelled'
+            
+            db.session.commit()
+            app.logger.info(f"M-Pesa payment failed: {result_desc}")
+        
+        # Always return success to M-Pesa
+        return jsonify({'ResultCode': 0, 'ResultDesc': 'Accepted'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"M-Pesa callback error: {str(e)}")
+        return jsonify({'ResultCode': 1, 'ResultDesc': 'Failed'}), 200
+
+# AJAX endpoint to check M-Pesa payment status
+@app.route('/payment/mpesa/check/<int:order_id>')
+@login_required
+def check_mpesa_status(order_id):
+    """AJAX endpoint to check if M-Pesa payment has been completed"""
+    order = Order.query.get_or_404(order_id)
+    
+    # Verify order belongs to current user
+    if order.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    return jsonify({
+        'payment_status': order.payment_status,
+        'order_status': order.status,
+        'payment_reference': order.payment_reference,
+        'completed': order.payment_status == 'Completed'
+    })
 
 @app.route('/pesapal/ipn', methods=['GET', 'POST'])
 def pesapal_ipn():

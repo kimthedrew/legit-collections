@@ -483,13 +483,17 @@
                                             <td><span class="badge bg-secondary">{{ order.size }}</span></td>
                                             <td><strong>Ksh{{ "%.2f"|format(order.amount or (order.shoe.price if order.shoe else 0)) }}</strong></td>
                                             <td>
-                                                {% if order.payment_method == 'pesapal' %}
+                                                {% if order.payment_method == 'mpesa_stk' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-phone-fill"></i> M-Pesa STK
+                                                    </span>
+                                                {% elif order.payment_method == 'pesapal' %}
                                                     <span class="badge bg-info">
                                                         <i class="bi bi-credit-card"></i> Pesapal
                                                     </span>
                                                 {% elif order.payment_method == 'manual_mpesa' %}
                                                     <span class="badge bg-primary">
-                                                        <i class="bi bi-phone"></i> M-Pesa
+                                                        <i class="bi bi-phone"></i> Manual M-Pesa
                                                     </span>
                                                 {% else %}
                                                     <span class="badge bg-warning text-dark">

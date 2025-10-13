@@ -74,12 +74,22 @@
                                 <div class="mb-2">
                                     <i class="bi bi-credit-card me-2"></i>
                                     <strong>Payment:</strong>
-                                    {% if order.payment_method == 'pesapal' %}
-                                        <span class="badge bg-info">Pesapal</span>
+                                    {% if order.payment_method == 'mpesa_stk' %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-phone-fill"></i> M-Pesa STK
+                                        </span>
+                                    {% elif order.payment_method == 'pesapal' %}
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-credit-card"></i> Pesapal
+                                        </span>
                                     {% elif order.payment_method == 'manual_mpesa' %}
-                                        <span class="badge bg-primary">M-Pesa</span>
+                                        <span class="badge bg-primary">
+                                            <i class="bi bi-phone"></i> Manual M-Pesa
+                                        </span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark">{{ order.payment_method or 'Cash' }}</span>
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-cash"></i> {{ order.payment_method or 'Cash' }}
+                                        </span>
                                     {% endif %}
                                 </div>
                                 <div class="mb-2">

@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}M-Pesa Payment Status{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg mt-5">
+                <div class="card-body text-center p-5">
+                    <!-- Payment Status Icon -->
+                    <div class="mb-4" id="statusIcon">
+                        <div class="spinner-border text-primary" style="width: 5rem; height: 5rem;" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Message -->
+                    <div id="statusMessage">
+                        <h3 class="mb-3">Waiting for Payment...</h3>
+                        <p class="lead text-muted mb-4">
+                            Please check your phone for the M-Pesa payment prompt
+                        </p>
+                        
+                        <div class="alert alert-info text-start">
+                            <strong><i class="bi bi-info-circle"></i> Next Steps:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Check your phone for M-Pesa prompt</li>
+                                <li>Enter your M-Pesa PIN</li>
+                                <li>Wait for confirmation (this happens automatically)</li>
+                            </ol>
+                        </div>
+                        
+                        <!-- Order Details -->
+                        <div class="text-start mt-4 p-3 bg-light rounded">
+                            <h6 class="mb-3">Order Details:</h6>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Order ID:</span>
+                                <strong>#{{ order.id }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Amount:</span>
+                                <strong class="text-success">Ksh{{ "%.2f"|format(order.amount or (order.shoe.price if order.shoe else 0)) }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Product:</span>
+                                <strong>{{ order.shoe.name if order.shoe else 'N/A' }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Size:</span>
+                                <strong>{{ order.size }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Success State (hidden initially) -->
+                    <div id="successMessage" style="display: none;">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                        <h3 class="mt-3 text-success">Payment Successful!</h3>
+                        <p class="lead mb-4">
+                            Your order has been confirmed and is being processed.
+                        </p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('user_orders') }}" class="btn btn-success btn-lg">
+                                <i class="bi bi-box-seam"></i> View My Orders
+                            </a>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-house"></i> Continue Shopping
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Failed State (hidden initially) -->
+                    <div id="failedMessage" style="display: none;">
+                        <i class="bi bi-x-circle-fill text-danger" style="font-size: 5rem;"></i>
+                        <h3 class="mt-3 text-danger">Payment Failed</h3>
+                        <p class="lead mb-4">
+                            The payment was not completed. Please try again.
+                        </p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('view_cart') }}" class="btn btn-primary btn-lg">
+                                <i class="bi bi-arrow-clockwise"></i> Try Again
+                            </a>
+                            <a href="{{ url_for('user_orders') }}" class="btn btn-outline-secondary">
+                                View Orders
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Timeout Message (hidden initially) -->
+                    <div id="timeoutMessage" style="display: none;">
+                        <i class="bi bi-clock text-warning" style="font-size: 5rem;"></i>
+                        <h3 class="mt-3 text-warning">Payment Timeout</h3>
+                        <p class="lead mb-4">
+                            We're still waiting for payment confirmation. This may take a few minutes.
+                        </p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('user_orders') }}" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-seam"></i> Check Order Status
+                            </a>
+                            <button onclick="location.reload()" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Help Text -->
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    <i class="bi bi-question-circle"></i> 
+                    Having trouble? 
+                    <a href="https://wa.me/254113690898?text=I need help with M-Pesa payment for Order #{{ order.id }}" target="_blank">
+                        Contact Support
+                    </a>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let checkCount = 0;
+const maxChecks = 60; // Check for 2 minutes (every 2 seconds)
+let checkInterval;
+
+function checkPaymentStatus() {
+    checkCount++;
+    
+    fetch("{{ url_for('check_mpesa_status', order_id=order.id) }}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.completed) {
+                // Payment successful
+                clearInterval(checkInterval);
+                document.getElementById('statusMessage').style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
+                
+                // Clear cart
+                sessionStorage.removeItem('cart');
+                
+                // Redirect after 3 seconds
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('user_orders') }}";
+                }, 3000);
+                
+            } else if (data.payment_status === 'Failed') {
+                // Payment failed
+                clearInterval(checkInterval);
+                document.getElementById('statusMessage').style.display = 'none';
+                document.getElementById('failedMessage').style.display = 'block';
+                
+            } else if (checkCount >= maxChecks) {
+                // Timeout - stop checking
+                clearInterval(checkInterval);
+                document.getElementById('statusMessage').style.display = 'none';
+                document.getElementById('timeoutMessage').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking payment status:', error);
+        });
+}
+
+// Start checking payment status every 2 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    // Check immediately
+    checkPaymentStatus();
+    
+    // Then check every 2 seconds
+    checkInterval = setInterval(checkPaymentStatus, 2000);
+});
+</script>
+
+<style>
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.spinner-border {
+    animation: spinner-border 0.75s linear infinite, pulse 2s ease-in-out infinite;
+}
+
+.bi-check-circle-fill,
+.bi-x-circle-fill,
+.bi-clock {
+    animation: fadeInScale 0.5s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+</style>
+{% endblock %}
+
