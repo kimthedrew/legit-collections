@@ -11,47 +11,151 @@
                 <div class="col-md-6">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <h4 class="card-title mb-3"><i class="bi bi-credit-card"></i> Payment Details</h4>
+                            <h4 class="card-title mb-3"><i class="bi bi-credit-card"></i> Payment Method</h4>
                             
                             <form method="POST" id="checkout-form">
                                 {{ form.hidden_tag() }}
                                 
-                                <div class="mb-3">
-                                    {{ form.phone_number.label(class="form-label") }}
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="bi bi-phone"></i></span>
-                                        {{ form.phone_number(class="form-control" + (' is-invalid' if form.phone_number.errors else ''), placeholder="07XXXXXXXX") }}
-                                    </div>
-                                    {% for error in form.phone_number.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-
+                                <!-- Payment Method Selection -->
                                 <div class="mb-4">
-                                    {{ form.payment_code.label(class="form-label") }}
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="bi bi-receipt"></i></span>
-                                        {{ form.payment_code(class="form-control" + (' is-invalid' if form.payment_code.errors else ''), placeholder="MPESA Transaction Code") }}
+                                    <label class="form-label fw-bold">Choose Payment Method</label>
+                                    
+                                    <!-- Pesapal Option (Online Payment) -->
+                                    <div class="form-check mb-3 p-3 border rounded payment-option" data-method="pesapal">
+                                        <input class="form-check-input" type="radio" name="payment_method" id="pesapal" value="pesapal" checked>
+                                        <label class="form-check-label w-100" for="pesapal">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><i class="bi bi-phone-fill text-success"></i> Pay with Pesapal</strong>
+                                                    <br>
+                                                    <small class="text-muted">M-Pesa, Card, Bank Transfer</small>
+                                                </div>
+                                                <i class="bi bi-chevron-right"></i>
+                                            </div>
+                                        </label>
                                     </div>
-                                    {% for error in form.payment_code.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
-                                    {% endfor %}
-                                    <small class="text-muted mt-1 d-block">
-                                        Payment Instructions:
-                                        <ol class="list-unstyled">
-                                            <li>1. Go to M-PESA Menu</li>
-                                            <li>2. Lipa na M-PESA</li>
-                                            <li>3. Buy Goods: 3598608</li>
-                                        
+                                    
+                                    <!-- Manual M-Pesa Option -->
+                                    <div class="form-check mb-3 p-3 border rounded payment-option" data-method="manual_mpesa">
+                                        <input class="form-check-input" type="radio" name="payment_method" id="manual_mpesa" value="manual_mpesa">
+                                        <label class="form-check-label w-100" for="manual_mpesa">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><i class="bi bi-receipt text-primary"></i> Manual M-Pesa</strong>
+                                                    <br>
+                                                    <small class="text-muted">Pay via Till, enter code manually</small>
+                                                </div>
+                                                <i class="bi bi-chevron-right"></i>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    
+                                    <!-- Cash on Delivery -->
+                                    <div class="form-check p-3 border rounded payment-option" data-method="cash">
+                                        <input class="form-check-input" type="radio" name="payment_method" id="cash" value="cash">
+                                        <label class="form-check-label w-100" for="cash">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><i class="bi bi-cash text-warning"></i> Cash on Delivery</strong>
+                                                    <br>
+                                                    <small class="text-muted">Pay when you receive</small>
+                                                </div>
+                                                <i class="bi bi-chevron-right"></i>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Pesapal Details (shown by default) -->
+                                <div id="pesapalDetails" class="payment-details">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Quick & Secure Payment</strong>
+                                        <ul class="mb-0 mt-2 small">
+                                            <li>Click "Pay Now" to proceed</li>
+                                            <li>Choose M-Pesa, Card, or Bank</li>
+                                            <li>Complete payment securely</li>
+                                            <li>Instant order confirmation</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone Number</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                            <input type="tel" name="phone_number" class="form-control" 
+                                                   placeholder="254712345678" value="{{ current_user.email if current_user.is_authenticated else '' }}" required>
+                                        </div>
+                                        <small class="text-muted">For order updates</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Manual M-Pesa Details (hidden by default) -->
+                                <div id="manualMpesaDetails" class="payment-details" style="display:none;">
+                                    <div class="alert alert-warning">
+                                        <strong>Payment Instructions:</strong>
+                                        <ol class="mb-0 mt-2 small">
+                                            <li>Go to M-PESA Menu</li>
+                                            <li>Select "Lipa na M-PESA"</li>
+                                            <li>Select "Buy Goods and Services"</li>
+                                            <li>Enter Till Number: <strong>3598608</strong></li>
+                                            <li>Enter Amount: <strong>Ksh{{ "%.2f"|format(total) }}</strong></li>
+                                            <li>Enter your M-PESA PIN</li>
+                                            <li>Copy the transaction code below</li>
                                         </ol>
-                                    </small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        {{ form.phone_number.label(class="form-label") }}
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                            {{ form.phone_number(class="form-control", placeholder="07XXXXXXXX") }}
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        {{ form.payment_code.label(class="form-label") }}
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-receipt"></i></span>
+                                            {{ form.payment_code(class="form-control", placeholder="e.g. QA12BC3D4E") }}
+                                        </div>
+                                        <small class="text-muted">Enter M-PESA confirmation code</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cash on Delivery Details (hidden by default) -->
+                                <div id="cashDetails" class="payment-details" style="display:none;">
+                                    <div class="alert alert-success">
+                                        <i class="bi bi-check-circle"></i>
+                                        <strong>Cash on Delivery</strong>
+                                        <p class="mb-0 mt-2 small">
+                                            You'll pay when your order is delivered. Our delivery team will contact you to arrange delivery.
+                                        </p>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone Number</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                            {{ form.phone_number(class="form-control", placeholder="07XXXXXXXX") }}
+                                        </div>
+                                        <small class="text-muted">For delivery coordination</small>
+                                    </div>
                                 </div>
 
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary btn-lg">
-                                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
-                                        Confirm Payment (Ksh{{ "%.2f"|format(total) }})
+                                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                        <span class="spinner-border spinner-border-sm d-none" id="spinner" role="status"></span>
+                                        <span id="btnText">
+                                            <i class="bi bi-lock-fill"></i> Pay Now - Ksh{{ "%.2f"|format(total) }}
+                                        </span>
                                     </button>
+                                </div>
+                                
+                                <div class="text-center mt-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-shield-check"></i> Secure payment powered by Pesapal
+                                    </small>
                                 </div>
                             </form>
                         </div>
@@ -89,4 +193,107 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentOptions = document.querySelectorAll('input[name="payment_method"]');
+    const pesapalDetails = document.getElementById('pesapalDetails');
+    const manualMpesaDetails = document.getElementById('manualMpesaDetails');
+    const cashDetails = document.getElementById('cashDetails');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    
+    // Payment method icons and labels
+    const paymentConfig = {
+        pesapal: {
+            text: '<i class="bi bi-lock-fill"></i> Pay Now - Ksh{{ "%.2f"|format(total) }}',
+            icon: 'bi-lock-fill'
+        },
+        manual_mpesa: {
+            text: '<i class="bi bi-receipt"></i> Confirm Payment - Ksh{{ "%.2f"|format(total) }}',
+            icon: 'bi-receipt'
+        },
+        cash: {
+            text: '<i class="bi bi-check-circle"></i> Place Order - Ksh{{ "%.2f"|format(total) }}',
+            icon: 'bi-check-circle'
+        }
+    };
+    
+    // Handle payment method change
+    paymentOptions.forEach(option => {
+        option.addEventListener('change', function() {
+            const method = this.value;
+            
+            // Hide all payment details
+            pesapalDetails.style.display = 'none';
+            manualMpesaDetails.style.display = 'none';
+            cashDetails.style.display = 'none';
+            
+            // Remove 'active' class from all options
+            document.querySelectorAll('.payment-option').forEach(opt => {
+                opt.classList.remove('border-primary', 'bg-light');
+            });
+            
+            // Show selected payment details
+            if (method === 'pesapal') {
+                pesapalDetails.style.display = 'block';
+                btnText.innerHTML = paymentConfig.pesapal.text;
+            } else if (method === 'manual_mpesa') {
+                manualMpesaDetails.style.display = 'block';
+                btnText.innerHTML = paymentConfig.manual_mpesa.text;
+            } else if (method === 'cash') {
+                cashDetails.style.display = 'block';
+                btnText.innerHTML = paymentConfig.cash.text;
+            }
+            
+            // Highlight selected option
+            this.closest('.payment-option').classList.add('border-primary', 'bg-light');
+        });
+    });
+    
+    // Highlight default selection
+    document.querySelector('input[name="payment_method"]:checked')
+        .closest('.payment-option')
+        .classList.add('border-primary', 'bg-light');
+    
+    // Form submission
+    document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        spinner.classList.remove('d-none');
+        submitBtn.disabled = true;
+        btnText.innerHTML = '<span class="ms-2">Processing...</span>';
+    });
+});
+</script>
+
+<style>
+.payment-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.payment-option:hover {
+    background-color: #f8f9fa !important;
+    border-color: #0d6efd !important;
+}
+
+.payment-option.border-primary {
+    border-width: 2px !important;
+}
+
+.payment-details {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
 {% endblock %}

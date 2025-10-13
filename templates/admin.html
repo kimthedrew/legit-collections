@@ -460,44 +460,100 @@
                                             <th>Product</th>
                                             <th>Size</th>
                                             <th>Amount</th>
-                                            <th>Payment Code</th>
-                                            <th>Verification</th>
-                                            <th>Status</th>
+                                            <th>Payment Method</th>
+                                            <th>Payment Status</th>
+                                            <th>Reference</th>
+                                            <th>Order Status</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for order in orders %}
                                         <tr>
-                                            <td>#{{ order.id }}</td>
+                                            <td><strong>#{{ order.id }}</strong></td>
                                             <td>{{ order.user.name }}</td>
                                             <td>
                                                 {% if order.phone_number %}
-                                                    {{ order.phone_number }}
+                                                    <small>{{ order.phone_number }}</small>
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
                                                 {% endif %}
                                             </td>
-                                            <td>{{ order.shoe.name }}</td>
-                                            <td>{{ order.size }}</td>
-                                            <td>Ksh{{ order.shoe.price }}</td>
-                                            <td><code>{{ order.payment_code }}</code></td>
+                                            <td>{{ order.shoe.name if order.shoe else 'N/A' }}</td>
+                                            <td><span class="badge bg-secondary">{{ order.size }}</span></td>
+                                            <td><strong>Ksh{{ "%.2f"|format(order.amount or (order.shoe.price if order.shoe else 0)) }}</strong></td>
                                             <td>
-                                                <form method="POST" action="{{ url_for('verify_payment', order_id=order.id) }}">
-                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                    <div class="input-group">
-                                                        <input type="text" class="form-control" name="admin_code" 
-                                                            placeholder="Enter code" required>
-                                                        <button type="submit" class="btn btn-sm btn-success">
-                                                            <i class="bi bi-check-circle"></i> Verify
-                                                        </button>
-                                                    </div>
-                                                </form>
+                                                {% if order.payment_method == 'pesapal' %}
+                                                    <span class="badge bg-info">
+                                                        <i class="bi bi-credit-card"></i> Pesapal
+                                                    </span>
+                                                {% elif order.payment_method == 'manual_mpesa' %}
+                                                    <span class="badge bg-primary">
+                                                        <i class="bi bi-phone"></i> M-Pesa
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="bi bi-cash"></i> {{ order.payment_method or 'Cash' }}
+                                                    </span>
+                                                {% endif %}
                                             </td>
                                             <td>
-                                                {% if order.status == 'Verified' %}
-                                                    <span class="badge bg-success">Verified</span>
+                                                {% if order.payment_status == 'Completed' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle-fill"></i> Paid
+                                                    </span>
+                                                {% elif order.payment_status == 'Failed' %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="bi bi-x-circle-fill"></i> Failed
+                                                    </span>
+                                                {% elif order.payment_status == 'Cash on Delivery' %}
+                                                    <span class="badge bg-warning">
+                                                        <i class="bi bi-cash"></i> COD
+                                                    </span>
                                                 {% else %}
-                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-clock"></i> Pending
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if order.payment_transaction_id %}
+                                                    <small class="text-muted" title="{{ order.payment_transaction_id }}">
+                                                        {{ order.payment_transaction_id[:15] }}...
+                                                    </small>
+                                                {% elif order.payment_code %}
+                                                    <code class="small">{{ order.payment_code }}</code>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if order.status == 'Verified' or order.status == 'Processing' %}
+                                                    <span class="badge bg-success">{{ order.status }}</span>
+                                                {% elif order.status == 'Cancelled' %}
+                                                    <span class="badge bg-danger">{{ order.status }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">{{ order.status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if order.payment_method == 'manual_mpesa' and order.payment_status == 'Pending' %}
+                                                    <form method="POST" action="{{ url_for('verify_payment', order_id=order.id) }}" class="d-inline">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="text" class="form-control" name="admin_code" 
+                                                                placeholder="Code" required style="max-width: 100px;">
+                                                            <button type="submit" class="btn btn-sm btn-success">
+                                                                <i class="bi bi-check-circle"></i>
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                {% elif order.payment_status == 'Completed' %}
+                                                    <span class="text-success small">
+                                                        <i class="bi bi-check-circle-fill"></i> Verified
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-muted small">No action needed</span>
                                                 {% endif %}
                                             </td>
                                         </tr>

@@ -73,11 +73,39 @@
                             <div class="d-flex flex-column">
                                 <div class="mb-2">
                                     <i class="bi bi-credit-card me-2"></i>
-                                    Payment Code: <code>{{ order.payment_code }}</code>
+                                    <strong>Payment:</strong>
+                                    {% if order.payment_method == 'pesapal' %}
+                                        <span class="badge bg-info">Pesapal</span>
+                                    {% elif order.payment_method == 'manual_mpesa' %}
+                                        <span class="badge bg-primary">M-Pesa</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">{{ order.payment_method or 'Cash' }}</span>
+                                    {% endif %}
                                 </div>
                                 <div class="mb-2">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    <strong>Payment Status:</strong>
+                                    {% if order.payment_status == 'Completed' %}
+                                        <span class="badge bg-success">Paid</span>
+                                    {% elif order.payment_status == 'Failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                    {% elif order.payment_status == 'Cash on Delivery' %}
+                                        <span class="badge bg-warning">COD</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </div>
+                                {% if order.payment_code or order.payment_transaction_id %}
+                                <div class="mb-2">
+                                    <i class="bi bi-receipt me-2"></i>
+                                    <small class="text-muted">
+                                        Ref: {{ order.payment_transaction_id[:20] if order.payment_transaction_id else order.payment_code }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                                <div class="mb-2">
                                     <i class="bi bi-truck me-2"></i>
-                                    Status: {{ order.status|title }}
+                                    <strong>Order Status:</strong> {{ order.status|title }}
                                 </div>
                             </div>
                         </div>

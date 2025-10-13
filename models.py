@@ -108,10 +108,21 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=True)
-    size = db.Column(db.String(10), nullable=False)  # Add this
+    size = db.Column(db.String(10), nullable=False)
+    
+    # Payment fields
+    payment_method = db.Column(db.String(20), default='Cash')  # M-Pesa, Card, Cash, Bank
+    payment_status = db.Column(db.String(20), default='Pending')  # Pending, Completed, Failed, Cancelled
+    payment_transaction_id = db.Column(db.String(200))  # Transaction ID from payment gateway
+    payment_reference = db.Column(db.String(100))  # Our internal reference
+    amount = db.Column(db.Float)  # Total amount paid
+    
+    # Legacy fields (keeping for backward compatibility)
     payment_code = db.Column(db.String(50))
     phone_number = db.Column(db.String(20))
-    status = db.Column(db.String(20), default='Pending')
+    
+    # Order status
+    status = db.Column(db.String(20), default='Pending')  # Pending, Processing, Shipped, Delivered, Cancelled
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

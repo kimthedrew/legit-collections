@@ -762,44 +762,249 @@ def checkout():
         })
         total += shoe.price
     
-    if form.validate_on_submit():
+    if request.method == 'POST':
         try:
+            payment_method = request.form.get('payment_method', 'cash')
+            phone_number = request.form.get('phone_number', '')
+            
+            # Create orders first (with pending payment)
+            order_ids = []
             for item in cart_items:
                 shoe = item['shoe']
                 size = item['size']
-                
-                # Only reduce stock if we have a specific size
-                if size != 'Size not specified':
-                    # Find the size inventory
-                    size_inv = next((s for s in shoe.sizes if s.size == size), None)
-                    
-                    if not size_inv or size_inv.quantity < 1:
-                        raise ValueError(f"Size {size} of {shoe.name} is out of stock")
-                    
-                    # Reduce stock
-                    size_inv.quantity -= 1
                 
                 # Create order
                 order = Order(
                     user_id=current_user.id,
                     shoe_id=shoe.id,
                     size=size,
-                    payment_code=form.payment_code.data,
-                    phone_number=form.phone_number.data,
+                    phone_number=phone_number,
+                    payment_method=payment_method,
+                    payment_status='Pending',
+                    amount=shoe.price,
                     status='Pending'
                 )
                 db.session.add(order)
+                db.session.flush()  # Get the order ID
+                order_ids.append(order.id)
             
             db.session.commit()
-            session.pop('cart', None)
-            flash('Payment successful! Your order is being processed', 'success')
-            return redirect(url_for('index'))
+            
+            # Handle different payment methods
+            if payment_method == 'pesapal':
+                # Pesapal Payment
+                try:
+                    from pesapal_helpers import initiate_payment
+                    
+                    # Use first order ID as the primary reference
+                    primary_order_id = order_ids[0]
+                    
+                    # Get or create IPN notification ID (should be done once during setup)
+                    notification_id = os.getenv('PESAPAL_IPN_ID', '')
+                    
+                    # If no IPN ID, register one
+                    if not notification_id:
+                        from pesapal_helpers import register_ipn_url
+                        ipn_url = url_for('pesapal_ipn', _external=True)
+                        notification_id = register_ipn_url(ipn_url)
+                        app.logger.warning(f"IPN ID created: {notification_id}. Add to .env file as PESAPAL_IPN_ID")
+                    
+                    # Prepare callback URL
+                    callback_url = url_for('pesapal_callback', _external=True)
+                    
+                    # Initiate payment
+                    result = initiate_payment(
+                        order_id=primary_order_id,
+                        amount=total,
+                        description=f"Order #{primary_order_id} - LegitCollections",
+                        callback_url=callback_url,
+                        notification_id=notification_id,
+                        customer_email=current_user.email,
+                        customer_phone=phone_number
+                    )
+                    
+                    if result.get('success'):
+                        # Update orders with tracking ID
+                        for order_id in order_ids:
+                            order = Order.query.get(order_id)
+                            order.payment_reference = result.get('merchant_reference')
+                            order.payment_transaction_id = result.get('order_tracking_id')
+                        db.session.commit()
+                        
+                        # Redirect to Pesapal payment page
+                        return redirect(result.get('redirect_url'))
+                    else:
+                        flash(f"Payment initiation failed: {result.get('error')}", 'danger')
+                        return redirect(url_for('view_cart'))
+                        
+                except Exception as e:
+                    app.logger.error(f"Pesapal payment error: {str(e)}")
+                    flash('Payment service temporarily unavailable. Please try another payment method.', 'warning')
+                    return redirect(url_for('view_cart'))
+            
+            elif payment_method == 'manual_mpesa':
+                # Manual M-Pesa payment
+                payment_code = request.form.get('payment_code', '')
+                
+                if not payment_code:
+                    flash('Please enter M-Pesa transaction code', 'danger')
+                    return redirect(url_for('checkout'))
+                
+                # Update orders with payment code
+                for order_id in order_ids:
+                    order = Order.query.get(order_id)
+                    order.payment_code = payment_code
+                    
+                    # Reduce stock
+                    if order.size != 'Size not specified':
+                        shoe = order.shoe
+                        size_inv = next((s for s in shoe.sizes if s.size == order.size), None)
+                        if size_inv and size_inv.quantity > 0:
+                            size_inv.quantity -= 1
+                
+                db.session.commit()
+                session.pop('cart', None)
+                flash('Payment submitted! We will verify and process your order shortly.', 'success')
+                return redirect(url_for('user_orders'))
+            
+            else:
+                # Cash on delivery
+                for order_id in order_ids:
+                    order = Order.query.get(order_id)
+                    order.payment_status = 'Cash on Delivery'
+                
+                db.session.commit()
+                session.pop('cart', None)
+                flash('Order placed successfully! Pay when you receive your items.', 'success')
+                return redirect(url_for('user_orders'))
         
         except Exception as e:
             db.session.rollback()
-            flash(str(e), 'danger')
+            app.logger.error(f"Checkout error: {str(e)}")
+            flash(f'Error processing order: {str(e)}', 'danger')
+            return redirect(url_for('view_cart'))
     
     return render_template('checkout.html', form=form, cart=cart_items, total=total)
+
+# Pesapal Payment Callbacks
+@app.route('/pesapal/callback')
+@login_required
+def pesapal_callback():
+    """Handle return from Pesapal payment page"""
+    try:
+        order_tracking_id = request.args.get('OrderTrackingId')
+        merchant_reference = request.args.get('OrderMerchantReference')
+        
+        if not order_tracking_id:
+            flash('Invalid payment response', 'danger')
+            return redirect(url_for('user_orders'))
+        
+        # Check transaction status
+        from pesapal_helpers import get_transaction_status, is_payment_successful
+        
+        status_result = get_transaction_status(order_tracking_id)
+        
+        if status_result.get('success'):
+            payment_status_code = status_result.get('payment_status_code')
+            
+            # Find orders by transaction ID
+            orders = Order.query.filter_by(payment_transaction_id=order_tracking_id).all()
+            
+            if is_payment_successful(payment_status_code):
+                # Payment successful - update orders and reduce stock
+                for order in orders:
+                    order.payment_status = 'Completed'
+                    order.status = 'Processing'
+                    order.payment_transaction_id = status_result.get('confirmation_code', order_tracking_id)
+                    
+                    # Reduce stock
+                    if order.size != 'Size not specified' and order.shoe:
+                        size_inv = next((s for s in order.shoe.sizes if s.size == order.size), None)
+                        if size_inv and size_inv.quantity > 0:
+                            size_inv.quantity -= 1
+                
+                db.session.commit()
+                
+                # Clear cart
+                session.pop('cart', None)
+                
+                flash('Payment successful! Your order is being processed.', 'success')
+                return redirect(url_for('user_orders'))
+            else:
+                # Payment failed
+                for order in orders:
+                    order.payment_status = 'Failed'
+                    order.status = 'Cancelled'
+                
+                db.session.commit()
+                
+                flash('Payment was not completed. Please try again.', 'warning')
+                return redirect(url_for('view_cart'))
+        else:
+            flash('Unable to verify payment status. Please contact support.', 'warning')
+            return redirect(url_for('user_orders'))
+            
+    except Exception as e:
+        app.logger.error(f"Pesapal callback error: {str(e)}")
+        flash('An error occurred while processing your payment', 'danger')
+        return redirect(url_for('user_orders'))
+
+@app.route('/pesapal/ipn', methods=['GET', 'POST'])
+def pesapal_ipn():
+    """Handle Pesapal IPN (Instant Payment Notification)"""
+    try:
+        # Pesapal sends IPN with these parameters
+        order_tracking_id = request.args.get('OrderTrackingId') or request.form.get('OrderTrackingId')
+        merchant_reference = request.args.get('OrderMerchantReference') or request.form.get('OrderMerchantReference')
+        order_notification_type = request.args.get('OrderNotificationType') or request.form.get('OrderNotificationType')
+        
+        if not order_tracking_id:
+            return jsonify({'status': 'error', 'message': 'Missing tracking ID'}), 400
+        
+        # Get transaction status
+        from pesapal_helpers import get_transaction_status, is_payment_successful
+        
+        status_result = get_transaction_status(order_tracking_id)
+        
+        if status_result.get('success'):
+            payment_status_code = status_result.get('payment_status_code')
+            
+            # Find orders
+            orders = Order.query.filter_by(payment_transaction_id=order_tracking_id).all()
+            
+            if orders:
+                if is_payment_successful(payment_status_code):
+                    # Update orders
+                    for order in orders:
+                        if order.payment_status != 'Completed':
+                            order.payment_status = 'Completed'
+                            order.status = 'Processing'
+                            order.payment_transaction_id = status_result.get('confirmation_code', order_tracking_id)
+                            
+                            # Reduce stock if not already reduced
+                            if order.size != 'Size not specified' and order.shoe:
+                                size_inv = next((s for s in order.shoe.sizes if s.size == order.size), None)
+                                if size_inv and size_inv.quantity > 0:
+                                    size_inv.quantity -= 1
+                    
+                    db.session.commit()
+                    app.logger.info(f"IPN: Payment completed for tracking ID {order_tracking_id}")
+                else:
+                    # Payment failed
+                    for order in orders:
+                        order.payment_status = 'Failed'
+                        if order.status == 'Pending':
+                            order.status = 'Cancelled'
+                    
+                    db.session.commit()
+                    app.logger.info(f"IPN: Payment failed for tracking ID {order_tracking_id}")
+        
+        # Always return success to acknowledge IPN
+        return jsonify({'status': 'success'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"IPN error: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/orders')
 @login_required
