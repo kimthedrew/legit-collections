@@ -82,18 +82,127 @@
 
     <!-- Footer -->
     <footer class="bg-dark text-white mt-auto py-4">
-        <div class="container text-center">
-            <div class="mb-3">
-                <button class="btn btn-outline-light btn-sm" id="theme-toggle">
-                    <i class="bi bi-moon-stars"></i> Toggle Theme
-                </button>
+        <div class="container">
+            <div class="row">
+                <!-- About Section -->
+                <div class="col-md-4 mb-3">
+                    <h5 class="mb-3">
+                        <i class="bi bi-shop"></i> LegitCollections
+                    </h5>
+                    <p class="text-muted small">
+                        Your trusted destination for authentic sneakers and streetwear. 
+                        We bring you the latest drops and timeless classics.
+                    </p>
+                    <div class="mb-2">
+                        <button class="btn btn-outline-light btn-sm" id="theme-toggle">
+                            <i class="bi bi-moon-stars"></i> Toggle Theme
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div class="col-md-4 mb-3">
+                    <h6 class="mb-3">Quick Links</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <a href="{{ url_for('index') }}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-house-door"></i> Home
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="{{ url_for('search') }}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-search"></i> Browse Products
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="{{ url_for('user_orders') }}" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-box-seam"></i> My Orders
+                            </a>
+                        </li>
+                        {% if current_user.is_authenticated and current_user.is_admin %}
+                        <li class="mb-2">
+                            <a href="{{ url_for('admin') }}" class="text-warning text-decoration-none">
+                                <i class="bi bi-shield-lock"></i> Admin Panel
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <!-- Customer Service -->
+                <div class="col-md-4 mb-3">
+                    <h6 class="mb-3">Customer Service</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <a href="#" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-info-circle"></i> About Us
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="#" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-envelope"></i> Contact Us
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="#" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-arrow-return-left"></i> Shipping & Returns
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="#" class="text-white-50 text-decoration-none">
+                                <i class="bi bi-patch-question"></i> FAQ
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-            <div class="social-links mb-3">
-                <a href="https://www.instagram.com/legitcollectionske" class="text-white mx-2"><i class="bi bi-instagram"></i></a>
-                <a href="#" class="text-white mx-2"><i class="bi bi-twitter-x"></i></a>
-                <a href="#" class="text-white mx-2"><i class="bi bi-facebook"></i></a>
+            
+            <hr class="border-secondary my-3">
+            
+            <!-- Bottom Footer -->
+            <div class="row">
+                <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                    <p class="mb-0 small text-muted">
+                        &copy; 2025 LegitCollections. All rights reserved.
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <!-- Social Links -->
+                    <div class="social-links text-center text-md-end">
+                        <a href="https://www.instagram.com/legitcollectionske" 
+                           class="text-white mx-2" 
+                           target="_blank"
+                           aria-label="Instagram">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+                        <a href="#" class="text-white mx-2" aria-label="Twitter">
+                            <i class="bi bi-twitter-x"></i>
+                        </a>
+                        <a href="#" class="text-white mx-2" aria-label="Facebook">
+                            <i class="bi bi-facebook"></i>
+                        </a>
+                        <a href="https://wa.me/254113690898" 
+                           class="text-white mx-2" 
+                           target="_blank"
+                           aria-label="WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
+                        </a>
+                    </div>
+                </div>
             </div>
-            <p class="mb-0">&copy; 2025 LegitCollections. All rights reserved.</p>
+            
+            <!-- Legal Links -->
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                    <small class="text-muted">
+                        <a href="#" class="text-white-50 text-decoration-none mx-2">Privacy Policy</a>
+                        <span class="text-secondary">|</span>
+                        <a href="#" class="text-white-50 text-decoration-none mx-2">Terms of Service</a>
+                        <span class="text-secondary">|</span>
+                        <a href="#" class="text-white-50 text-decoration-none mx-2">Return Policy</a>
+                    </small>
+                </div>
+            </div>
         </div>
     </footer>
 

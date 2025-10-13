@@ -145,20 +145,30 @@ def load_user(user_id):
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'newest')
     
-    shoes = Shoe.query.options(db.joinedload(Shoe.sizes))\
-                     .order_by(Shoe.id.desc())\
-                     .paginate(page=page, per_page=9)
+    # Build query with sorting
+    query = Shoe.query.options(db.joinedload(Shoe.sizes))
+    
+    # Apply sorting
+    if sort_by == 'price_low':
+        query = query.order_by(Shoe.price.asc())
+    elif sort_by == 'price_high':
+        query = query.order_by(Shoe.price.desc())
+    elif sort_by == 'name_az':
+        query = query.order_by(Shoe.name.asc())
+    elif sort_by == 'name_za':
+        query = query.order_by(Shoe.name.desc())
+    else:  # newest (default)
+        query = query.order_by(Shoe.id.desc())
+    
+    shoes = query.paginate(page=page, per_page=9)
     
     forms_dict = {}
     for shoe in shoes.items:  # Note: use shoes.items for paginated results
         form = AddToCartForm()
         form.size.choices = [(str(size.size), str(size.size)) for size in shoe.sizes]
         forms_dict[shoe.id] = form
-    
-    # Process shoes
-    # for shoe in shoes.items:
-    #     shoe.total_stock = sum(size.quantity for size in shoe.sizes)
     
     return render_template('index.html', shoes=shoes, forms_dict=forms_dict)
 
@@ -1124,6 +1134,11 @@ def format_float(value, decimals=2):
         return f"{float(value):,.{decimals}f}"
     except (ValueError, TypeError):
         return value
+
+# Error Handlers
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
 
 if __name__ == '__main__':
     # with app.app_context():
