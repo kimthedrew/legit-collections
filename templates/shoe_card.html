@@ -16,10 +16,14 @@
                 {{ shoe.description|truncate(100) }}
             </p>
 
-            <!-- Stock Status - FIXED: Changed to total_stock -->
+            <!-- Stock Status - Hide quantity from users -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 {% if shoe.total_stock > 0 %}
-                    <span class="badge bg-success">In Stock: {{ shoe.total_stock }}</span>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                        <span class="badge bg-success">In Stock: {{ shoe.total_stock }}</span>
+                    {% else %}
+                        <span class="badge bg-success">In Stock</span>
+                    {% endif %}
                 {% else %}
                     <span class="badge bg-secondary">Out of Stock</span>
                 {% endif %}

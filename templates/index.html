@@ -46,11 +46,17 @@
                     <div class="d-flex justify-content-between align-items-center mt-auto">
                         <h4 class="text-danger">{{ shoe.price }}</h4>
                         
-                        <!-- Show total stock available -->
+                        <!-- Stock status - Hide quantity from users -->
                         {% if shoe.total_stock > 0 %}
-                            <span class="badge bg-success">
-                                In Stock: {{ shoe.total_stock }}
-                            </span>
+                            {% if current_user.is_authenticated and current_user.is_admin %}
+                                <span class="badge bg-success">
+                                    In Stock: {{ shoe.total_stock }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">
+                                    In Stock
+                                </span>
+                            {% endif %}
                         {% else %}
                             <span class="badge bg-danger">
                                 Sold Out
@@ -71,7 +77,11 @@
                                     <option value="" disabled selected>Select size</option>
                                     {% for size in shoe.sizes if size.quantity > 0 %}
                                         <option value="{{ size.size }}">
-                                            {{ size.size }} ({{ size.quantity }} left)
+                                            {% if current_user.is_authenticated and current_user.is_admin %}
+                                                {{ size.size }} ({{ size.quantity }} left)
+                                            {% else %}
+                                                {{ size.size }}
+                                            {% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
