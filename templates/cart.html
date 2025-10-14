@@ -60,73 +60,63 @@
 
                     <!-- Checkout Summary -->
                     <div class="col-md-4">
-                        <div class="card shadow-sm">
+                        <div class="card shadow-sm sticky-top" style="top: 20px;">
                             <div class="card-body">
-                                <h5 class="card-title mb-4">Order Summary</h5>
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-cart-check"></i> Order Summary
+                                </h5>
                                 
-                                <div class="d-flex justify-content-between mb-3">
-                                    <span>Subtotal ({{ cart|length }} items):</span>
+                                <!-- Items Count -->
+                                <div class="d-flex justify-content-between mb-2 text-muted">
+                                    <span>Items ({{ cart|length }}):</span>
+                                    <span>{{ cart|length }}</span>
+                                </div>
+                                
+                                <!-- Subtotal -->
+                                <div class="d-flex justify-content-between mb-3 pb-3 border-bottom">
+                                    <span>Subtotal:</span>
                                     <span class="fw-bold">Ksh{{ total|round(2) }}</span>
                                 </div>
                                 
-                                <!-- Checkout Form -->
-                                <form method="POST" action="{{ url_for('checkout') }}" id="checkout-form">
-                                    {{ form.hidden_tag() }}
-                                    
-                                    <div class="mb-4">
-                                        <label class="form-label fw-bold">Payment Details</label>
-
-                                        <div class="alert alert-info mt-2">
-                                            <p class="mb-2">How to pay via M-Pesa:</p>
-                                            <ol class="mb-0">
-                                                <li>Go to M-Pesa on your phone</li>
-                                                <li>Select <strong>Lipa na M-Pesa</strong></li>
-                                                <li>Choose <strong>Buy Goods</strong></li>
-                                                <li>Enter Till Number: <strong>3598608</strong></li>
-                                                <li>Amount: <strong>Ksh{{ total|round(2) }}</strong></li>
-                                                <li>Complete payment and enter the transaction code below</li>
-                                            </ol>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            {{ form.phone_number.label(class="form-label small text-muted") }}
-                                            {{ form.phone_number(class="form-control" + (' is-invalid' if form.phone_number.errors else ''), 
-                                                placeholder="2547XXXXXXXX") }}
-                                            {% if form.phone_number.errors %}
-                                                <div class="invalid-feedback">
-                                                    {% for error in form.phone_number.errors %}
-                                                        {{ error }}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="mb-3">
-                                            {{ form.payment_code.label(class="form-label small text-muted") }}
-                                            {{ form.payment_code(class="form-control" + (' is-invalid' if form.payment_code.errors else ''), 
-                                                placeholder="MPesa Transaction Code") }}
-                                            {% if form.payment_code.errors %}
-                                                <div class="invalid-feedback">
-                                                    {% for error in form.payment_code.errors %}
-                                                        {{ error }}
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary btn-lg">
-                                            <i class="bi bi-lock"></i> Complete Checkout
-                                            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
-                                        </button>
-                                    </div>
-                                </form>
+                                <!-- Total -->
+                                <div class="d-flex justify-content-between mb-4">
+                                    <span class="h5 mb-0">Total:</span>
+                                    <span class="h5 mb-0 text-success">Ksh{{ total|round(2) }}</span>
+                                </div>
                                 
-                                <div class="text-center mt-4">
-                                    <a href="{{ url_for('index') }}" class="text-decoration-none">
+                                <!-- Proceed to Checkout Button -->
+                                <div class="d-grid gap-2">
+                                    <a href="{{ url_for('checkout') }}" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-lock-fill"></i> Proceed to Checkout
+                                    </a>
+                                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
                                         <i class="bi bi-arrow-left"></i> Continue Shopping
                                     </a>
+                                </div>
+                                
+                                <!-- Payment Methods Info -->
+                                <div class="mt-4 p-3 bg-light rounded">
+                                    <h6 class="small fw-bold mb-2">
+                                        <i class="bi bi-shield-check"></i> Secure Payment Options:
+                                    </h6>
+                                    <ul class="list-unstyled small mb-0">
+                                        <li class="mb-1">
+                                            <i class="bi bi-phone-fill text-success"></i> M-Pesa STK Push
+                                        </li>
+                                        <li class="mb-1">
+                                            <i class="bi bi-credit-card text-info"></i> Pesapal (M-Pesa, Cards, Bank)
+                                        </li>
+                                        <li>
+                                            <i class="bi bi-receipt text-primary"></i> Manual M-Pesa
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <!-- Trust Badges -->
+                                <div class="text-center mt-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-lock-fill"></i> Secure checkout
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -136,17 +126,4 @@
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const checkoutForm = document.getElementById('checkout-form');
-        const submitButton = checkoutForm.querySelector('button[type="submit"]');
-        const spinner = submitButton.querySelector('.spinner-border');
-        
-        checkoutForm.addEventListener('submit', function() {
-            submitButton.disabled = true;
-            spinner.classList.remove('d-none');
-        });
-    });
-</script>
 {% endblock %}
