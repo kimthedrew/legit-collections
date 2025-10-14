@@ -1,11 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, make_response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
 from extensions import db
 from flask_migrate import Migrate
 from flask_caching import Cache
-from datetime import timedelta
+from datetime import timedelta, datetime
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import os
@@ -26,6 +26,14 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 migrate = Migrate()
 cache = Cache()
+
+# Email will be initialized conditionally
+try:
+    from email_helpers import mail, init_mail
+    EMAIL_AVAILABLE = True
+except ImportError:
+    EMAIL_AVAILABLE = False
+    mail = None
 
 def create_app():
     app = Flask(__name__)
@@ -87,6 +95,10 @@ def create_app():
     if SESSION_AVAILABLE:
         Session(app)
     
+    # Initialize Flask-Mail if available
+    if EMAIL_AVAILABLE:
+        init_mail(app)
+    
     login_manager.login_view = 'login'
 
     # Configure logging
@@ -96,7 +108,7 @@ def create_app():
 
     # Import models after app and db are initialized
     with app.app_context():
-        from models import User, Shoe, Order, ShoeSize, Wishlist, ProductImage
+        from models import User, Shoe, Order, ShoeSize, Wishlist, ProductImage, Review
         db.create_all()
 
     return app
@@ -1516,6 +1528,95 @@ def remove_from_wishlist(wishlist_id):
             return jsonify({'success': False, 'error': str(e)}), 400
         
         return redirect(url_for('wishlist'))
+
+# Product Reviews Routes
+@app.route('/product/<int:shoe_id>/review', methods=['POST'])
+@login_required
+def add_review(shoe_id):
+    """Add a review for a product"""
+    from models import Review
+    
+    try:
+        shoe = Shoe.query.get_or_404(shoe_id)
+        rating = request.form.get('rating', type=int)
+        comment = request.form.get('comment', '').strip()
+        
+        if not rating or rating < 1 or rating > 5:
+            flash('Please provide a valid rating (1-5 stars)', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        # Check if user already reviewed
+        existing = Review.query.filter_by(user_id=current_user.id, shoe_id=shoe_id).first()
+        
+        if existing:
+            # Update existing review
+            existing.rating = rating
+            existing.comment = comment
+            existing.updated_at = datetime.utcnow()
+            flash('Your review has been updated!', 'success')
+        else:
+            # Create new review
+            # Check if verified purchase
+            has_purchased = Order.query.filter_by(
+                user_id=current_user.id,
+                shoe_id=shoe_id,
+                payment_status='Completed'
+            ).first() is not None
+            
+            review = Review(
+                user_id=current_user.id,
+                shoe_id=shoe_id,
+                rating=rating,
+                comment=comment,
+                verified_purchase=has_purchased
+            )
+            db.session.add(review)
+            flash('Thank you for your review!', 'success')
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error adding review: {str(e)}")
+        flash('Error submitting review', 'danger')
+    
+    return redirect(request.referrer or url_for('index'))
+
+@app.route('/product/<int:shoe_id>')
+def product_detail(shoe_id):
+    """Show product details with reviews"""
+    from models import Review
+    from sqlalchemy import func
+    
+    shoe = Shoe.query.options(db.joinedload(Shoe.sizes)).get_or_404(shoe_id)
+    
+    # Get reviews
+    reviews = Review.query.filter_by(shoe_id=shoe_id)\
+                         .order_by(Review.created_at.desc())\
+                         .all()
+    
+    # Calculate average rating
+    avg_rating = db.session.query(func.avg(Review.rating))\
+                          .filter_by(shoe_id=shoe_id)\
+                          .scalar() or 0
+    
+    # Get user's review if exists
+    user_review = None
+    if current_user.is_authenticated:
+        user_review = Review.query.filter_by(user_id=current_user.id, shoe_id=shoe_id).first()
+    
+    # Check if user purchased
+    has_purchased = False
+    if current_user.is_authenticated:
+        has_purchased = Order.query.filter_by(
+            user_id=current_user.id,
+            shoe_id=shoe_id,
+            payment_status='Completed'
+        ).first() is not None
+    
+    return render_template('product_detail.html', shoe=shoe, reviews=reviews, 
+                         avg_rating=avg_rating, user_review=user_review, 
+                         has_purchased=has_purchased)
 
 @app.route('/migrate_cart')
 @login_required

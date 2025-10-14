@@ -150,7 +150,9 @@
                      style="height: 250px; object-fit: cover;"
                      loading="lazy">
                 <div class="card-body">
-                    <h5 class="card-title">{{ shoe.name }}</h5>
+                    <a href="{{ url_for('product_detail', shoe_id=shoe.id) }}" class="text-decoration-none text-dark">
+                        <h5 class="card-title">{{ shoe.name }}</h5>
+                    </a>
                     <p class="text-muted">{{ shoe.category }}</p>
                     
                     <p class="card-text">{{ shoe.description|truncate(100) }}</p>

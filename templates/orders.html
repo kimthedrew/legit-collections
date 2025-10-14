@@ -120,28 +120,79 @@
                             </div>
                         </div>
 
-                        <!-- Actions -->
-                        <div class="col-md-4">
-                            <div class="d-flex flex-column h-100 justify-content-between">
-                                <div class="mb-2">
-                                    {% if order.status == 'Verified' %}
-                                    <span class="badge bg-success">
-                                        <i class="bi bi-check-circle"></i> Ready for Shipping
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="bi bi-clock"></i> Processing
-                                    </span>
-                                    {% endif %}
+                        <!-- Order Timeline & Actions -->
+                        <div class="col-md-8">
+                            <h6 class="mb-3">Order Progress:</h6>
+                            <div class="order-timeline">
+                                <!-- Ordered -->
+                                <div class="timeline-item active">
+                                    <div class="timeline-marker">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <strong>Order Placed</strong>
+                                        <br>
+                                        <small class="text-muted">{{ order.created_at.strftime('%b %d, %I:%M %p') }}</small>
+                                    </div>
                                 </div>
-                                <div>
-                                    <button class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-question-circle"></i> Help
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm">
-                                        <i class="bi bi-receipt"></i> Invoice
-                                    </button>
+                                
+                                <!-- Payment -->
+                                <div class="timeline-item {% if order.payment_status == 'Completed' %}active{% endif %}">
+                                    <div class="timeline-marker">
+                                        <i class="bi bi-{% if order.payment_status == 'Completed' %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <strong>Payment {% if order.payment_status == 'Completed' %}Confirmed{% else %}Pending{% endif %}</strong>
+                                        {% if order.payment_status == 'Completed' %}
+                                        <br>
+                                        <small class="text-success">Payment received</small>
+                                        {% endif %}
+                                    </div>
                                 </div>
+                                
+                                <!-- Processing -->
+                                <div class="timeline-item {% if order.status in ['Processing', 'Verified', 'Shipped', 'Delivered'] %}active{% endif %}">
+                                    <div class="timeline-marker">
+                                        <i class="bi bi-{% if order.status in ['Processing', 'Verified', 'Shipped', 'Delivered'] %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <strong>Processing</strong>
+                                    </div>
+                                </div>
+                                
+                                <!-- Shipped -->
+                                <div class="timeline-item {% if order.status in ['Shipped', 'Delivered'] %}active{% endif %}">
+                                    <div class="timeline-marker">
+                                        <i class="bi bi-{% if order.status in ['Shipped', 'Delivered'] %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <strong>Shipped</strong>
+                                    </div>
+                                </div>
+                                
+                                <!-- Delivered -->
+                                <div class="timeline-item {% if order.status == 'Delivered' %}active{% endif %}">
+                                    <div class="timeline-marker">
+                                        <i class="bi bi-{% if order.status == 'Delivered' %}check-circle-fill{% else %}circle{% endif %}"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <strong>Delivered</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="mt-3">
+                                <a href="https://wa.me/254113690898?text=Hello, I have a question about Order #{{ order.id }}" 
+                                   target="_blank"
+                                   class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-whatsapp"></i> Contact Support
+                                </a>
+                                {% if order.payment_status == 'Completed' %}
+                                <button class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-receipt"></i> View Receipt
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

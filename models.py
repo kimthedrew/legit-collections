@@ -168,6 +168,25 @@ class ProductImage(db.Model):
     # Relationship
     shoe = db.relationship('Shoe', backref='additional_images')
 
+class Review(db.Model):
+    __tablename__ = 'reviews'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    comment = db.Column(db.Text)
+    verified_purchase = db.Column(db.Boolean, default=False)  # Did they actually buy it?
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='reviews')
+    shoe = db.relationship('Shoe', backref='reviews')
+    
+    # User can only review each product once
+    __table_args__ = (db.UniqueConstraint('user_id', 'shoe_id', name='unique_user_shoe_review'),)
+
 class Session(db.Model):
     __tablename__ = 'sessions'
     id = db.Column(db.String(255), primary_key=True)
