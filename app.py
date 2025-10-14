@@ -327,7 +327,7 @@ def admin():
     if not current_user.is_admin:
         return redirect(url_for('index'))
     
-    from datetime import timedelta
+    from datetime import datetime, timedelta
     from sqlalchemy import func
     from models import Wishlist
     
