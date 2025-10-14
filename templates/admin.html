@@ -251,42 +251,46 @@
                     
                     <!-- Total Orders Card -->
                     <div class="col-md-3">
-                        <div class="card shadow-sm border-0 bg-success text-white h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="text-white-50 mb-2">Total Orders</h6>
-                                        <h3 class="mb-0">{{ analytics.total_orders }}</h3>
-                                        <small class="text-white-50">
-                                            {{ analytics.completed_orders }} completed
-                                        </small>
-                                    </div>
-                                    <div>
-                                        <i class="bi bi-cart-check" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                        <a href="#orders" class="text-decoration-none">
+                            <div class="card shadow-sm border-0 bg-success text-white h-100 hover-lift">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-white-50 mb-2">Total Orders</h6>
+                                            <h3 class="mb-0">{{ analytics.total_orders }}</h3>
+                                            <small class="text-white-50">
+                                                {{ analytics.completed_orders }} completed
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <i class="bi bi-cart-check" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
                     
                     <!-- Products Card -->
                     <div class="col-md-3">
-                        <div class="card shadow-sm border-0 bg-info text-white h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="text-white-50 mb-2">Total Products</h6>
-                                        <h3 class="mb-0">{{ analytics.total_products }}</h3>
-                                        <small class="text-white-50">
-                                            {{ analytics.low_stock_count }} low stock
-                                        </small>
-                                    </div>
-                                    <div>
-                                        <i class="bi bi-box-seam" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                        <a href="#manageProducts" class="text-decoration-none">
+                            <div class="card shadow-sm border-0 bg-info text-white h-100 hover-lift">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-white-50 mb-2">Total Products</h6>
+                                            <h3 class="mb-0">{{ analytics.total_products }}</h3>
+                                            <small class="text-white-50">
+                                                {{ analytics.low_stock_count }} low stock
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <i class="bi bi-box-seam" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
                     
                     <!-- Customers Card -->
@@ -660,6 +664,7 @@
                                             <th>Order ID</th>
                                             <th>Customer</th>
                                             <th>Phone</th>
+                                            <th>Address</th>
                                             <th>Product</th>
                                             <th>Size</th>
                                             <th>Amount</th>
@@ -674,12 +679,25 @@
                                         {% for order in orders %}
                                         <tr>
                                             <td><strong>#{{ order.id }}</strong></td>
-                                            <td>{{ order.user.name }}</td>
+                                            <td>
+                                                {{ order.user.name }}
+                                                <br>
+                                                <small class="text-muted">{{ order.user.email }}</small>
+                                            </td>
                                             <td>
                                                 {% if order.phone_number %}
                                                     <small>{{ order.phone_number }}</small>
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if order.user.address %}
+                                                    <small class="text-muted" title="{{ order.user.address }}">
+                                                        <i class="bi bi-geo-alt"></i> {{ order.user.address[:30] }}{% if order.user.address|length > 30 %}...{% endif %}
+                                                    </small>
+                                                {% else %}
+                                                    <span class="text-muted">Not provided</span>
                                                 {% endif %}
                                             </td>
                                             <td>{{ order.shoe.name if order.shoe else 'N/A' }}</td>
@@ -698,9 +716,17 @@
                                                     <span class="badge bg-primary">
                                                         <i class="bi bi-phone"></i> Manual M-Pesa
                                                     </span>
-                                                {% else %}
+                                                {% elif order.payment_method == 'cash' or order.payment_method == 'Cash' %}
                                                     <span class="badge bg-warning text-dark">
-                                                        <i class="bi bi-cash"></i> {{ order.payment_method or 'Cash' }}
+                                                        <i class="bi bi-cash"></i> Cash
+                                                    </span>
+                                                {% elif order.payment_code %}
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-receipt"></i> Manual (Legacy)
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">
+                                                        <i class="bi bi-question-circle"></i> Not Specified
                                                     </span>
                                                 {% endif %}
                                             </td>
