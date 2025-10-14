@@ -1066,15 +1066,9 @@ def checkout():
                 return redirect(url_for('user_orders'))
             
             else:
-                # Cash on delivery
-                for order_id in order_ids:
-                    order = Order.query.get(order_id)
-                    order.payment_status = 'Cash on Delivery'
-                
-                db.session.commit()
-                session.pop('cart', None)
-                flash('Order placed successfully! Pay when you receive your items.', 'success')
-                return redirect(url_for('user_orders'))
+                # Unknown payment method
+                flash('Invalid payment method selected. Please choose a valid payment option.', 'danger')
+                return redirect(url_for('checkout'))
         
         except Exception as e:
             db.session.rollback()

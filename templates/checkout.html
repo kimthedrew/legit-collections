@@ -51,7 +51,7 @@
                                     </div>
                                     
                                     <!-- Manual M-Pesa Option -->
-                                    <div class="form-check mb-3 p-3 border rounded payment-option" data-method="manual_mpesa">
+                                    <div class="form-check p-3 border rounded payment-option" data-method="manual_mpesa">
                                         <input class="form-check-input" type="radio" name="payment_method" id="manual_mpesa" value="manual_mpesa">
                                         <label class="form-check-label w-100" for="manual_mpesa">
                                             <div class="d-flex justify-content-between align-items-center">
@@ -59,21 +59,6 @@
                                                     <strong><i class="bi bi-receipt text-primary"></i> Manual M-Pesa</strong>
                                                     <br>
                                                     <small class="text-muted">Pay via Till, enter code manually</small>
-                                                </div>
-                                                <i class="bi bi-chevron-right"></i>
-                                            </div>
-                                        </label>
-                                    </div>
-                                    
-                                    <!-- Cash on Delivery -->
-                                    <div class="form-check p-3 border rounded payment-option" data-method="cash">
-                                        <input class="form-check-input" type="radio" name="payment_method" id="cash" value="cash">
-                                        <label class="form-check-label w-100" for="cash">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <strong><i class="bi bi-cash text-warning"></i> Cash on Delivery</strong>
-                                                    <br>
-                                                    <small class="text-muted">Pay when you receive</small>
                                                 </div>
                                                 <i class="bi bi-chevron-right"></i>
                                             </div>
@@ -171,26 +156,6 @@
                                         <small class="text-muted">Enter M-PESA confirmation code</small>
                                     </div>
                                 </div>
-                                
-                                <!-- Cash on Delivery Details (hidden by default) -->
-                                <div id="cashDetails" class="payment-details" style="display:none;">
-                                    <div class="alert alert-success">
-                                        <i class="bi bi-check-circle"></i>
-                                        <strong>Cash on Delivery</strong>
-                                        <p class="mb-0 mt-2 small">
-                                            You'll pay when your order is delivered. Our delivery team will contact you to arrange delivery.
-                                        </p>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">Phone Number</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text"><i class="bi bi-phone"></i></span>
-                                            {{ form.phone_number(class="form-control", placeholder="07XXXXXXXX") }}
-                                        </div>
-                                        <small class="text-muted">For delivery coordination</small>
-                                    </div>
-                                </div>
 
                                 <div class="d-grid">
                                     <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
@@ -249,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const mpesaStkDetails = document.getElementById('mpesaStkDetails');
     const pesapalDetails = document.getElementById('pesapalDetails');
     const manualMpesaDetails = document.getElementById('manualMpesaDetails');
-    const cashDetails = document.getElementById('cashDetails');
     const submitBtn = document.getElementById('submitBtn');
     const btnText = document.getElementById('btnText');
     const spinner = document.getElementById('spinner');
@@ -267,10 +231,6 @@ document.addEventListener('DOMContentLoaded', function() {
         manual_mpesa: {
             text: '<i class="bi bi-receipt"></i> Confirm Payment - Ksh{{ "%.2f"|format(total) }}',
             icon: 'bi-receipt'
-        },
-        cash: {
-            text: '<i class="bi bi-check-circle"></i> Place Order - Ksh{{ "%.2f"|format(total) }}',
-            icon: 'bi-check-circle'
         }
     };
     
@@ -283,7 +243,6 @@ document.addEventListener('DOMContentLoaded', function() {
             mpesaStkDetails.style.display = 'none';
             pesapalDetails.style.display = 'none';
             manualMpesaDetails.style.display = 'none';
-            cashDetails.style.display = 'none';
             
             // Remove 'active' class from all options
             document.querySelectorAll('.payment-option').forEach(opt => {
@@ -300,9 +259,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (method === 'manual_mpesa') {
                 manualMpesaDetails.style.display = 'block';
                 btnText.innerHTML = paymentConfig.manual_mpesa.text;
-            } else if (method === 'cash') {
-                cashDetails.style.display = 'block';
-                btnText.innerHTML = paymentConfig.cash.text;
             }
             
             // Highlight selected option
