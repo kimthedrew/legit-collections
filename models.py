@@ -140,6 +140,34 @@ class ShoeSize(db.Model):
     
     # shoe = db.relationship('Shoe', backref='sizes')
 
+class Wishlist(db.Model):
+    __tablename__ = 'wishlist'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='wishlist_items')
+    shoe = db.relationship('Shoe', backref='wishlist_items')
+    
+    # Unique constraint - user can only add each shoe once
+    __table_args__ = (db.UniqueConstraint('user_id', 'shoe_id', name='unique_wishlist_item'),)
+
+class ProductImage(db.Model):
+    __tablename__ = 'product_images'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=False)
+    image_url = db.Column(db.String(300), nullable=False)
+    is_primary = db.Column(db.Boolean, default=False)  # Main product image
+    display_order = db.Column(db.Integer, default=0)  # Order to display images
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    shoe = db.relationship('Shoe', backref='additional_images')
+
 class Session(db.Model):
     __tablename__ = 'sessions'
     id = db.Column(db.String(255), primary_key=True)

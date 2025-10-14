@@ -96,7 +96,7 @@ def create_app():
 
     # Import models after app and db are initialized
     with app.app_context():
-        from models import User, Shoe, Order, ShoeSize
+        from models import User, Shoe, Order, ShoeSize, Wishlist, ProductImage
         db.create_all()
 
     return app
@@ -144,11 +144,40 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
+    from models import Wishlist
+    from sqlalchemy import func
+    
     page = request.args.get('page', 1, type=int)
     sort_by = request.args.get('sort', 'newest')
     
-    # Build query with sorting
+    # Get filter parameters
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
+    category = request.args.get('category', '')
+    availability = request.args.get('availability', '')
+    
+    # Build query with filters
     query = Shoe.query.options(db.joinedload(Shoe.sizes))
+    
+    # Apply price filters
+    if min_price is not None:
+        query = query.filter(Shoe.price >= min_price)
+    if max_price is not None:
+        query = query.filter(Shoe.price <= max_price)
+    
+    # Apply category filter
+    if category:
+        query = query.filter(Shoe.category == category)
+    
+    # Apply availability filter
+    if availability == 'in_stock':
+        # Only show products with at least one size in stock
+        query = query.join(ShoeSize).filter(ShoeSize.quantity > 0)
+    elif availability == 'out_of_stock':
+        # Products with no sizes or all sizes out of stock
+        query = query.outerjoin(ShoeSize).group_by(Shoe.id).having(
+            func.coalesce(func.sum(ShoeSize.quantity), 0) == 0
+        )
     
     # Apply sorting
     if sort_by == 'price_low':
@@ -164,13 +193,28 @@ def index():
     
     shoes = query.paginate(page=page, per_page=9)
     
+    # Get user's wishlist if logged in
+    wishlist_ids = []
+    if current_user.is_authenticated:
+        wishlist_items = Wishlist.query.filter_by(user_id=current_user.id).all()
+        wishlist_ids = [item.shoe_id for item in wishlist_items]
+    
     forms_dict = {}
     for shoe in shoes.items:  # Note: use shoes.items for paginated results
         form = AddToCartForm()
         form.size.choices = [(str(size.size), str(size.size)) for size in shoe.sizes]
         forms_dict[shoe.id] = form
     
-    return render_template('index.html', shoes=shoes, forms_dict=forms_dict)
+    # Get related/recommended products (different from current page items)
+    displayed_ids = [shoe.id for shoe in shoes.items]
+    related_products = Shoe.query.options(db.joinedload(Shoe.sizes))\
+                                 .filter(Shoe.id.notin_(displayed_ids) if displayed_ids else True)\
+                                 .order_by(func.random())\
+                                 .limit(3)\
+                                 .all()
+    
+    return render_template('index.html', shoes=shoes, forms_dict=forms_dict, 
+                         wishlist_ids=wishlist_ids, related_products=related_products)
 
 # @app.route('/')
 # def index():
@@ -1195,6 +1239,92 @@ def search():
                         ).paginate(page=page, per_page=9)
     
     return render_template('search.html', results=results, query=query)
+
+# Wishlist Routes
+@app.route('/wishlist')
+@login_required
+def wishlist():
+    """Display user's wishlist"""
+    from models import Wishlist
+    
+    wishlist_items = Wishlist.query.filter_by(user_id=current_user.id)\
+                                   .join(Shoe)\
+                                   .options(db.joinedload(Wishlist.shoe).joinedload(Shoe.sizes))\
+                                   .all()
+    
+    return render_template('wishlist.html', wishlist_items=wishlist_items)
+
+@app.route('/wishlist/add/<int:shoe_id>', methods=['POST'])
+@login_required
+def add_to_wishlist(shoe_id):
+    """Add item to wishlist"""
+    from models import Wishlist
+    
+    try:
+        shoe = Shoe.query.get_or_404(shoe_id)
+        
+        # Check if already in wishlist
+        existing = Wishlist.query.filter_by(user_id=current_user.id, shoe_id=shoe_id).first()
+        
+        if existing:
+            flash(f'{shoe.name} is already in your wishlist!', 'info')
+        else:
+            wishlist_item = Wishlist(user_id=current_user.id, shoe_id=shoe_id)
+            db.session.add(wishlist_item)
+            db.session.commit()
+            flash(f'{shoe.name} added to wishlist!', 'success')
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Added to wishlist'})
+        
+        return redirect(request.referrer or url_for('index'))
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error adding to wishlist: {str(e)}")
+        flash('Error adding to wishlist', 'danger')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': str(e)}), 400
+        
+        return redirect(request.referrer or url_for('index'))
+
+@app.route('/wishlist/remove/<int:wishlist_id>', methods=['POST'])
+@login_required
+def remove_from_wishlist(wishlist_id):
+    """Remove item from wishlist"""
+    from models import Wishlist
+    
+    try:
+        wishlist_item = Wishlist.query.get_or_404(wishlist_id)
+        
+        # Verify ownership
+        if wishlist_item.user_id != current_user.id:
+            flash('Unauthorized action', 'danger')
+            return redirect(url_for('wishlist'))
+        
+        shoe_name = wishlist_item.shoe.name
+        db.session.delete(wishlist_item)
+        db.session.commit()
+        
+        flash(f'{shoe_name} removed from wishlist', 'success')
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True})
+        
+        return redirect(url_for('wishlist'))
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error removing from wishlist: {str(e)}")
+        flash('Error removing from wishlist', 'danger')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': str(e)}), 400
+        
+        return redirect(url_for('wishlist'))
 
 @app.route('/migrate_cart')
 @login_required

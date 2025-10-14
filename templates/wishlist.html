@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}My Wishlist{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-heart-fill text-danger"></i> My Wishlist
+        </h2>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+            <i class="bi bi-plus-circle"></i> Add More Items
+        </a>
+    </div>
+
+    {% if not wishlist_items %}
+    <!-- Empty Wishlist State -->
+    <div class="card shadow text-center py-5">
+        <div class="card-body">
+            <i class="bi bi-heart display-1 text-muted mb-4"></i>
+            <h3 class="mb-3">Your Wishlist is Empty</h3>
+            <p class="text-muted mb-4">
+                Save your favorite items here to buy them later!
+            </p>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="bi bi-shop"></i> Start Shopping
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <!-- Wishlist Items -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <p class="text-muted">
+                <i class="bi bi-heart"></i> 
+                You have <strong>{{ wishlist_items|length }}</strong> item(s) in your wishlist
+            </p>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        {% for item in wishlist_items %}
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm position-relative">
+                <!-- Remove from Wishlist Button -->
+                <form method="POST" action="{{ url_for('remove_from_wishlist', wishlist_id=item.id) }}" class="position-absolute" style="top: 10px; right: 10px; z-index: 10;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-light btn-sm rounded-circle" title="Remove from wishlist">
+                        <i class="bi bi-x-lg text-danger"></i>
+                    </button>
+                </form>
+                
+                <!-- Product Image -->
+                <a href="{{ url_for('add_to_cart', shoe_id=item.shoe.id) }}">
+                    <img src="{{ item.shoe.image_url }}" 
+                         class="card-img-top" 
+                         alt="{{ item.shoe.name }}"
+                         style="height: 250px; object-fit: cover;"
+                         loading="lazy">
+                </a>
+                
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.shoe.name }}</h5>
+                    <p class="text-muted small">{{ item.shoe.category }}</p>
+                    
+                    <p class="card-text small">
+                        {{ item.shoe.description|truncate(80) }}
+                    </p>
+                    
+                    <!-- Price and Stock -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="text-danger mb-0">Ksh{{ "%.2f"|format(item.shoe.price) }}</h4>
+                        
+                        {% if item.shoe.total_stock > 0 %}
+                            <span class="badge bg-success">In Stock</span>
+                        {% else %}
+                            <span class="badge bg-danger">Sold Out</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Available Sizes -->
+                    {% set available_sizes = item.shoe.sizes|selectattr('quantity', 'gt', 0)|list %}
+                    {% if available_sizes %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Available Sizes:</small>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for size in available_sizes[:5] %}
+                            <span class="badge bg-secondary">{{ size.size }}</span>
+                            {% endfor %}
+                            {% if available_sizes|length > 5 %}
+                            <span class="badge bg-light text-dark">+{{ available_sizes|length - 5 }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        {% if item.shoe.total_stock > 0 %}
+                        <a href="{{ url_for('add_to_cart', shoe_id=item.shoe.id) }}" class="btn btn-primary">
+                            <i class="bi bi-cart-plus"></i> Add to Cart
+                        </a>
+                        {% else %}
+                        <button class="btn btn-secondary" disabled>
+                            <i class="bi bi-x-circle"></i> Out of Stock
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Added Date -->
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> Added {{ item.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-2">
+                        <i class="bi bi-lightbulb"></i> Love everything?
+                    </h5>
+                    <p class="text-muted mb-md-0 small">
+                        Add all available items from your wishlist to cart in one click!
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-arrow-left"></i> Continue Shopping
+                    </a>
+                    <a href="{{ url_for('view_cart') }}" class="btn btn-success">
+                        <i class="bi bi-cart3"></i> View Cart
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.wishlist-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+}
+
+.wishlist-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.wishlist-btn i {
+    transition: all 0.3s ease;
+}
+
+.wishlist-btn:hover i {
+    color: #dc3545 !important;
+}
+</style>
+{% endblock %}
+

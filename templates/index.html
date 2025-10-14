@@ -6,7 +6,7 @@
 <div class="container mt-4">
     <!-- Search Bar -->
     <div class="row mb-4">
-        <div class="col-12">
+        <div class="col-md-8 mb-3 mb-md-0">
             <div class="input-group shadow-sm">
                 <span class="input-group-text bg-white">
                     <i class="bi bi-search"></i>
@@ -16,6 +16,80 @@
                        class="form-control" 
                        placeholder="Search by name, brand or description..."
                        aria-label="Search sneakers">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+                <i class="bi bi-funnel"></i> Filters
+                <span class="badge bg-primary ms-2" id="activeFiltersCount" style="display: none;">0</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filters Panel -->
+    <div class="collapse mb-4" id="filtersCollapse">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('index') }}" id="filterForm">
+                    <div class="row g-3">
+                        <!-- Price Range Filter -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-currency-dollar"></i> Price Range
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number" name="min_price" class="form-control form-control-sm" 
+                                           placeholder="Min" value="{{ request.args.get('min_price', '') }}">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" name="max_price" class="form-control form-control-sm" 
+                                           placeholder="Max" value="{{ request.args.get('max_price', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Category Filter -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-tag"></i> Category
+                            </label>
+                            <select name="category" class="form-select form-select-sm">
+                                <option value="">All Categories</option>
+                                <option value="Sneakers" {% if request.args.get('category') == 'Sneakers' %}selected{% endif %}>Sneakers</option>
+                                <option value="Running" {% if request.args.get('category') == 'Running' %}selected{% endif %}>Running</option>
+                                <option value="Basketball" {% if request.args.get('category') == 'Basketball' %}selected{% endif %}>Basketball</option>
+                                <option value="Casual" {% if request.args.get('category') == 'Casual' %}selected{% endif %}>Casual</option>
+                                <option value="Sports" {% if request.args.get('category') == 'Sports' %}selected{% endif %}>Sports</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Availability Filter -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-box-seam"></i> Availability
+                            </label>
+                            <select name="availability" class="form-select form-select-sm">
+                                <option value="">All Products</option>
+                                <option value="in_stock" {% if request.args.get('availability') == 'in_stock' %}selected{% endif %}>In Stock Only</option>
+                                <option value="out_of_stock" {% if request.args.get('availability') == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Actions -->
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-funnel-fill"></i> Apply Filters
+                        </button>
+                    </div>
+                    
+                    <!-- Keep sort parameter when filtering -->
+                    <input type="hidden" name="sort" value="{{ request.args.get('sort', 'newest') }}">
+                </form>
             </div>
         </div>
     </div>
@@ -57,7 +131,19 @@
     <div class="row" id="productsContainer">
         {% for shoe in shoes.items %}
         <div class="col-md-4 mb-4 product-card">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow-sm position-relative">
+                <!-- Wishlist Heart Button -->
+                {% if current_user.is_authenticated %}
+                <form method="POST" action="{{ url_for('add_to_wishlist', shoe_id=shoe.id) }}" class="wishlist-form position-absolute" style="top: 10px; right: 10px; z-index: 10;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-light btn-sm rounded-circle wishlist-btn" 
+                            data-shoe-id="{{ shoe.id }}"
+                            title="{% if shoe.id in wishlist_ids %}Remove from wishlist{% else %}Add to wishlist{% endif %}">
+                        <i class="bi bi-heart{% if shoe.id in wishlist_ids %}-fill text-danger{% endif %}" style="font-size: 1.2rem;"></i>
+                    </button>
+                </form>
+                {% endif %}
+                
                 <img src="{{ shoe.image_url }}" 
                      class="card-img-top" 
                      alt="{{ shoe.name }}" 
@@ -144,6 +230,61 @@
         </div>
         {% endfor %}
     </div>
+    
+    <!-- Related/You May Also Like Section -->
+    {% if related_products %}
+    <div class="row mt-5 mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>
+                    <i class="bi bi-stars text-warning"></i> You May Also Like
+                </h3>
+                <a href="{{ url_for('search') }}" class="btn btn-sm btn-outline-primary">
+                    View All <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        {% for shoe in related_products %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm position-relative">
+                <!-- Wishlist Button -->
+                {% if current_user.is_authenticated %}
+                <form method="POST" action="{{ url_for('add_to_wishlist', shoe_id=shoe.id) }}" class="wishlist-form position-absolute" style="top: 10px; right: 10px; z-index: 10;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-light btn-sm rounded-circle wishlist-btn">
+                        <i class="bi bi-heart{% if shoe.id in wishlist_ids %}-fill text-danger{% endif %}" style="font-size: 1.2rem;"></i>
+                    </button>
+                </form>
+                {% endif %}
+                
+                <img src="{{ shoe.image_url }}" 
+                     class="card-img-top" 
+                     alt="{{ shoe.name }}"
+                     style="height: 200px; object-fit: cover;"
+                     loading="lazy">
+                <div class="card-body">
+                    <h6 class="card-title">{{ shoe.name }}</h6>
+                    <p class="text-muted small mb-2">{{ shoe.category }}</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 text-danger mb-0">Ksh{{ "%.2f"|format(shoe.price) }}</span>
+                        {% if shoe.total_stock > 0 %}
+                            <a href="{{ url_for('add_to_cart', shoe_id=shoe.id) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                        {% else %}
+                            <span class="badge bg-secondary">Sold Out</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- Pagination -->
     {% if shoes.pages > 1 %}
