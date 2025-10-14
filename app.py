@@ -327,6 +327,10 @@ def admin():
     if not current_user.is_admin:
         return redirect(url_for('index'))
     
+    from datetime import timedelta
+    from sqlalchemy import func
+    from models import Wishlist
+    
     form = ShoeForm()
     size_form = ShoeSizeForm()
     
@@ -334,7 +338,7 @@ def admin():
     try:
         if current_user.is_super_admin():
             # Super admin sees all orders and shoes
-            orders = Order.query.all()
+            orders = Order.query.order_by(Order.created_at.desc()).all()
             shoes = Shoe.query.all()
             admin_type = 'super_admin'
         elif current_user.is_limited_admin():
@@ -342,21 +346,108 @@ def admin():
             shoes = Shoe.query.filter_by(created_by=current_user.id).all()
             # Get orders for shoes created by this admin
             shoe_ids = [shoe.id for shoe in shoes]
-            orders = Order.query.filter(Order.shoe_id.in_(shoe_ids)).all() if shoe_ids else []
+            orders = Order.query.filter(Order.shoe_id.in_(shoe_ids)).order_by(Order.created_at.desc()).all() if shoe_ids else []
             admin_type = 'limited_admin'
         else:
             # Fallback for regular admin (backward compatibility)
-            orders = Order.query.all()
+            orders = Order.query.order_by(Order.created_at.desc()).all()
             shoes = Shoe.query.all()
             admin_type = 'admin'
     except Exception as e:
         # Fallback if there are any issues with the new fields
         app.logger.error(f"Admin type check failed: {str(e)}")
-        orders = Order.query.all()
+        orders = Order.query.order_by(Order.created_at.desc()).all()
         shoes = Shoe.query.all()
         admin_type = 'admin'
     
-    return render_template('admin.html', orders=orders, shoes=shoes, form=form, size_form=size_form, admin_type=admin_type)
+    # Calculate Analytics
+    analytics = {}
+    
+    # Total Revenue (from completed payments)
+    total_revenue = db.session.query(func.sum(Order.amount))\
+                             .filter(Order.payment_status == 'Completed')\
+                             .scalar() or 0
+    
+    # Total Orders
+    total_orders = len(orders)
+    
+    # Pending Orders (need verification)
+    pending_orders = len([o for o in orders if o.payment_status == 'Pending'])
+    
+    # Completed Orders
+    completed_orders = len([o for o in orders if o.payment_status == 'Completed'])
+    
+    # Total Products
+    total_products = len(shoes)
+    
+    # Low Stock Products (total stock < 5)
+    low_stock_products = [shoe for shoe in shoes if shoe.total_stock < 5 and shoe.total_stock > 0]
+    
+    # Out of Stock Products
+    out_of_stock_products = [shoe for shoe in shoes if shoe.total_stock == 0]
+    
+    # Total Customers (unique users who placed orders)
+    total_customers = db.session.query(func.count(func.distinct(Order.user_id))).scalar() or 0
+    
+    # Revenue by payment method
+    revenue_by_method = db.session.query(
+        Order.payment_method,
+        func.sum(Order.amount)
+    ).filter(Order.payment_status == 'Completed')\
+     .group_by(Order.payment_method)\
+     .all()
+    
+    # Top selling products
+    top_products = db.session.query(
+        Shoe.name,
+        func.count(Order.id).label('order_count'),
+        func.sum(Order.amount).label('revenue')
+    ).join(Order)\
+     .filter(Order.payment_status == 'Completed')\
+     .group_by(Shoe.id, Shoe.name)\
+     .order_by(func.count(Order.id).desc())\
+     .limit(5)\
+     .all()
+    
+    # Recent 7 days sales
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_revenue = db.session.query(func.sum(Order.amount))\
+                               .filter(Order.payment_status == 'Completed')\
+                               .filter(Order.created_at >= seven_days_ago)\
+                               .scalar() or 0
+    
+    recent_orders_count = Order.query.filter(Order.created_at >= seven_days_ago).count()
+    
+    # Products wishlisted
+    most_wishlisted = db.session.query(
+        Shoe.name,
+        func.count(Wishlist.id).label('wishlist_count')
+    ).join(Wishlist)\
+     .group_by(Shoe.id, Shoe.name)\
+     .order_by(func.count(Wishlist.id).desc())\
+     .limit(5)\
+     .all()
+    
+    analytics = {
+        'total_revenue': total_revenue,
+        'total_orders': total_orders,
+        'pending_orders': pending_orders,
+        'completed_orders': completed_orders,
+        'total_products': total_products,
+        'low_stock_count': len(low_stock_products),
+        'out_of_stock_count': len(out_of_stock_products),
+        'total_customers': total_customers,
+        'revenue_by_method': revenue_by_method,
+        'top_products': top_products,
+        'recent_revenue': recent_revenue,
+        'recent_orders': recent_orders_count,
+        'low_stock_products': low_stock_products,
+        'out_of_stock_products': out_of_stock_products,
+        'most_wishlisted': most_wishlisted
+    }
+    
+    return render_template('admin.html', orders=orders, shoes=shoes, form=form, 
+                         size_form=size_form, admin_type=admin_type, analytics=analytics)
 
 @app.route('/admin/add_shoe', methods=['POST'])
 @login_required
@@ -1223,6 +1314,106 @@ def user_orders():
             order.total_price = 0
 
     return render_template('orders.html', orders=orders)
+
+@app.route('/admin/export/orders')
+@login_required
+def export_orders():
+    """Export orders to CSV"""
+    if not current_user.is_admin:
+        flash('Unauthorized access', 'danger')
+        return redirect(url_for('index'))
+    
+    import csv
+    from io import StringIO
+    from flask import make_response
+    
+    # Get all orders
+    orders = Order.query.order_by(Order.created_at.desc()).all()
+    
+    # Create CSV
+    si = StringIO()
+    writer = csv.writer(si)
+    
+    # Headers
+    writer.writerow([
+        'Order ID', 'Customer Name', 'Customer Email', 'Phone', 'Product', 'Size',
+        'Amount', 'Payment Method', 'Payment Status', 'Payment Reference',
+        'Order Status', 'Created At', 'Updated At'
+    ])
+    
+    # Data
+    for order in orders:
+        writer.writerow([
+            order.id,
+            order.user.name if order.user else 'N/A',
+            order.user.email if order.user else 'N/A',
+            order.phone_number or 'N/A',
+            order.shoe.name if order.shoe else 'N/A',
+            order.size,
+            order.amount or (order.shoe.price if order.shoe else 0),
+            order.payment_method or 'Cash',
+            order.payment_status or 'Pending',
+            order.payment_reference or order.payment_code or 'N/A',
+            order.status,
+            order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            order.updated_at.strftime('%Y-%m-%d %H:%M:%S') if order.updated_at else 'N/A'
+        ])
+    
+    # Create response
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=orders_{datetime.now().strftime('%Y%m%d')}.csv"
+    output.headers["Content-type"] = "text/csv"
+    
+    return output
+
+@app.route('/admin/export/products')
+@login_required
+def export_products():
+    """Export products inventory to CSV"""
+    if not current_user.is_admin:
+        flash('Unauthorized access', 'danger')
+        return redirect(url_for('index'))
+    
+    import csv
+    from io import StringIO
+    from flask import make_response
+    
+    # Get all products
+    shoes = Shoe.query.all()
+    
+    # Create CSV
+    si = StringIO()
+    writer = csv.writer(si)
+    
+    # Headers
+    writer.writerow([
+        'Product ID', 'Name', 'Category', 'Price', 'Total Stock',
+        'Sizes Available', 'Description', 'Image URL', 'Created By', 'Created At'
+    ])
+    
+    # Data
+    for shoe in shoes:
+        sizes_info = ', '.join([f"{s.size}({s.quantity})" for s in shoe.sizes])
+        
+        writer.writerow([
+            shoe.id,
+            shoe.name,
+            shoe.category,
+            shoe.price,
+            shoe.total_stock,
+            sizes_info or 'No sizes',
+            shoe.description or '',
+            shoe.image_url or '',
+            shoe.created_by or 'N/A',
+            shoe.created_at.strftime('%Y-%m-%d %H:%M:%S') if shoe.created_at else 'N/A'
+        ])
+    
+    # Create response
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=products_{datetime.now().strftime('%Y%m%d')}.csv"
+    output.headers["Content-type"] = "text/csv"
+    
+    return output
 
 @app.route('/search')
 def search():

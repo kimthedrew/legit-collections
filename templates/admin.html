@@ -182,13 +182,26 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-graph-up me-2"></i> Reports
+                            <a class="nav-link" href="#analytics">
+                                <i class="bi bi-graph-up me-2"></i> Analytics
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">
                                 <i class="bi bi-gear me-2"></i> Settings
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <p class="text-muted small px-3 mb-2">EXPORT REPORTS</p>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('export_orders') }}">
+                                <i class="bi bi-download me-2"></i> Export Orders CSV
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('export_products') }}">
+                                <i class="bi bi-download me-2"></i> Export Products CSV
                             </a>
                         </li>
                     </ul>
@@ -213,6 +226,196 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
+
+                <!-- Analytics Dashboard -->
+                <div class="row g-3 mb-4">
+                    <!-- Total Revenue Card -->
+                    <div class="col-md-3">
+                        <div class="card shadow-sm border-0 bg-primary text-white h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-2">Total Revenue</h6>
+                                        <h3 class="mb-0">Ksh{{ "%.2f"|format(analytics.total_revenue) }}</h3>
+                                        <small class="text-white-50">
+                                            Last 7 days: Ksh{{ "%.0f"|format(analytics.recent_revenue) }}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <i class="bi bi-currency-dollar" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Total Orders Card -->
+                    <div class="col-md-3">
+                        <div class="card shadow-sm border-0 bg-success text-white h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-2">Total Orders</h6>
+                                        <h3 class="mb-0">{{ analytics.total_orders }}</h3>
+                                        <small class="text-white-50">
+                                            {{ analytics.completed_orders }} completed
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <i class="bi bi-cart-check" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Products Card -->
+                    <div class="col-md-3">
+                        <div class="card shadow-sm border-0 bg-info text-white h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-2">Total Products</h6>
+                                        <h3 class="mb-0">{{ analytics.total_products }}</h3>
+                                        <small class="text-white-50">
+                                            {{ analytics.low_stock_count }} low stock
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <i class="bi bi-box-seam" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Customers Card -->
+                    <div class="col-md-3">
+                        <div class="card shadow-sm border-0 bg-warning text-white h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-2">Customers</h6>
+                                        <h3 class="mb-0">{{ analytics.total_customers }}</h3>
+                                        <small class="text-white-50">
+                                            {{ analytics.pending_orders }} pending
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <i class="bi bi-people" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detailed Analytics Row -->
+                <div class="row g-3 mb-4">
+                    <!-- Top Products -->
+                    <div class="col-md-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-trophy text-warning"></i> Top Selling Products
+                                </h6>
+                                <small class="text-muted">By orders</small>
+                            </div>
+                            <div class="card-body">
+                                {% if analytics.top_products %}
+                                <div class="list-group list-group-flush">
+                                    {% for product in analytics.top_products %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div>
+                                            <strong>{{ loop.index }}. {{ product.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ product.order_count }} orders</small>
+                                        </div>
+                                        <span class="badge bg-success rounded-pill">
+                                            Ksh{{ "%.0f"|format(product.revenue or 0) }}
+                                        </span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="bi bi-cart-x text-muted" style="font-size: 3rem;"></i>
+                                    <p class="text-muted mt-2 mb-0">No sales data yet</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Low Stock Alerts -->
+                    <div class="col-md-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-exclamation-triangle text-warning"></i> Inventory Alerts
+                                </h6>
+                                <small class="text-muted">Stock < 5 units</small>
+                            </div>
+                            <div class="card-body">
+                                {% if analytics.low_stock_products or analytics.out_of_stock_count > 0 %}
+                                <div class="list-group list-group-flush">
+                                    {% for shoe in analytics.low_stock_products[:5] %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div>
+                                            <strong>{{ shoe.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">ID: #{{ shoe.id }}</small>
+                                        </div>
+                                        <span class="badge bg-warning text-dark">
+                                            {{ shoe.total_stock }} left
+                                        </span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if analytics.out_of_stock_count > 0 %}
+                                <div class="alert alert-danger small mt-3 mb-0">
+                                    <i class="bi bi-x-circle"></i> 
+                                    <strong>{{ analytics.out_of_stock_count }}</strong> product(s) completely out of stock
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                                    <p class="text-muted mt-2 mb-0">All products well stocked!</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Most Wishlisted Products -->
+                {% if analytics.most_wishlisted %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="bi bi-heart-fill text-danger"></i> Customer Interest (Most Wishlisted)
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for product in analytics.most_wishlisted %}
+                            <div class="col-md-4 mb-2">
+                                <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                                    <span class="small">{{ product.name }}</span>
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-heart-fill"></i> {{ product.wishlist_count }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-lightbulb"></i> These products are popular - consider restocking or promoting them!
+                        </small>
+                    </div>
+                </div>
+                {% endif %}
 
                 <!-- Add New Shoe Section -->
                 <div class="card mb-5 shadow" id="addProduct">
