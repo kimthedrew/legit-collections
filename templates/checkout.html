@@ -6,7 +6,72 @@
         <div class="col-lg-8">
             <h2 class="mb-4">Complete Your Purchase</h2>
             
+            {% if is_guest %}
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle"></i> <strong>Guest Checkout</strong> - You're checking out as a guest. 
+                <a href="{{ url_for('login') }}" class="alert-link">Login</a> or <a href="{{ url_for('register') }}" class="alert-link">Register</a> for faster checkout next time!
+            </div>
+            {% endif %}
+            
             <div class="row g-4">
+                <!-- Customer & Delivery Information (for guests) -->
+                {% if is_guest %}
+                <div class="col-12">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h4 class="card-title mb-3"><i class="bi bi-person-circle"></i> Customer Information</h4>
+                            {% if guest_form %}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    {{ guest_form.guest_name.label(class="form-label") }}
+                                    {{ guest_form.guest_name(class="form-control", placeholder="Enter your full name") }}
+                                    {% if guest_form.guest_name.errors %}
+                                        <div class="text-danger small">{{ guest_form.guest_name.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ guest_form.guest_email.label(class="form-label") }}
+                                    {{ guest_form.guest_email(class="form-control", placeholder="your.email@example.com") }}
+                                    {% if guest_form.guest_email.errors %}
+                                        <div class="text-danger small">{{ guest_form.guest_email.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ guest_form.guest_phone.label(class="form-label") }}
+                                    {{ guest_form.guest_phone(class="form-control", placeholder="254712345678") }}
+                                    <small class="text-muted">Format: 254XXXXXXXXX</small>
+                                    {% if guest_form.guest_phone.errors %}
+                                        <div class="text-danger small">{{ guest_form.guest_phone.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ guest_form.delivery_city.label(class="form-label") }}
+                                    {{ guest_form.delivery_city(class="form-control", placeholder="Nairobi") }}
+                                    {% if guest_form.delivery_city.errors %}
+                                        <div class="text-danger small">{{ guest_form.delivery_city.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-12">
+                                    {{ guest_form.delivery_address.label(class="form-label") }}
+                                    {{ guest_form.delivery_address(class="form-control", rows="3", placeholder="Enter your complete delivery address") }}
+                                    {% if guest_form.delivery_address.errors %}
+                                        <div class="text-danger small">{{ guest_form.delivery_address.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-12">
+                                    {{ guest_form.delivery_instructions.label(class="form-label") }}
+                                    {{ guest_form.delivery_instructions(class="form-control", rows="2", placeholder="Optional: Any special delivery instructions") }}
+                                    {% if guest_form.delivery_instructions.errors %}
+                                        <div class="text-danger small">{{ guest_form.delivery_instructions.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <!-- Payment Section -->
                 <div class="col-md-6">
                     <div class="card shadow-sm">
@@ -14,7 +79,11 @@
                             <h4 class="card-title mb-3"><i class="bi bi-credit-card"></i> Payment Method</h4>
                             
                             <form method="POST" id="checkout-form">
-                                {{ form.hidden_tag() }}
+                                {% if form %}
+                                    {{ form.hidden_tag() }}
+                                {% else %}
+                                    {{ guest_form.hidden_tag() }}
+                                {% endif %}
                                 
                                 <!-- Payment Method Selection -->
                                 <div class="mb-4">
@@ -139,6 +208,19 @@
                                         </ol>
                                     </div>
                                     
+                                    {% if is_guest %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone Number</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                                            <input type="tel" name="phone_number" class="form-control" 
+                                                   placeholder="254712345678" 
+                                                   value="{% if guest_form %}{{ guest_form.guest_phone.data }}{% endif %}" 
+                                                   required>
+                                        </div>
+                                        <small class="text-muted">For payment verification</small>
+                                    </div>
+                                    {% else %}
                                     <div class="mb-3">
                                         {{ form.phone_number.label(class="form-label") }}
                                         <div class="input-group">
@@ -146,12 +228,20 @@
                                             {{ form.phone_number(class="form-control", placeholder="07XXXXXXXX") }}
                                         </div>
                                     </div>
+                                    {% endif %}
 
                                     <div class="mb-3">
-                                        {{ form.payment_code.label(class="form-label") }}
+                                        <label class="form-label">Payment Code <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="bi bi-receipt"></i></span>
-                                            {{ form.payment_code(class="form-control", placeholder="e.g. QA12BC3D4E") }}
+                                            {% if is_guest %}
+                                                <input type="text" name="payment_code" class="form-control" 
+                                                       placeholder="e.g. QA12BC3D4E" 
+                                                       pattern="[A-Z0-9]{6,12}" 
+                                                       required>
+                                            {% else %}
+                                                {{ form.payment_code(class="form-control", placeholder="e.g. QA12BC3D4E") }}
+                                            {% endif %}
                                         </div>
                                         <small class="text-muted">Enter M-PESA confirmation code</small>
                                     </div>
@@ -234,6 +324,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Utility: enable/disable and (un)require inputs inside a section
+    function setSectionActive(sectionEl, isActive) {
+        const inputs = sectionEl.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            if (isActive) {
+                input.disabled = false;
+                // Restore required only for fields explicitly marked via data-required
+                if (input.dataset.required === 'true') {
+                    input.required = true;
+                }
+            } else {
+                // Remember if it was required, then disable and remove required so browser won't validate hidden fields
+                if (input.required) {
+                    input.dataset.required = 'true';
+                }
+                input.required = false;
+                input.disabled = true;
+            }
+        });
+    }
+
+    // Initialize data-required flags for fields that are required by default
+    (function initRequiredFlags() {
+        document.querySelectorAll('#mpesaStkDetails [name="mpesa_phone"], #pesapalDetails [name="phone_number"], #manualMpesaDetails [name="phone_number"], #manualMpesaDetails [name="payment_code"]').forEach(input => {
+            if (input.required) input.dataset.required = 'true';
+        });
+    })();
+
     // Handle payment method change
     paymentOptions.forEach(option => {
         option.addEventListener('change', function() {
@@ -243,6 +361,10 @@ document.addEventListener('DOMContentLoaded', function() {
             mpesaStkDetails.style.display = 'none';
             pesapalDetails.style.display = 'none';
             manualMpesaDetails.style.display = 'none';
+            // Disable all sections to avoid validating hidden inputs
+            setSectionActive(mpesaStkDetails, false);
+            setSectionActive(pesapalDetails, false);
+            setSectionActive(manualMpesaDetails, false);
             
             // Remove 'active' class from all options
             document.querySelectorAll('.payment-option').forEach(opt => {
@@ -252,12 +374,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show selected payment details
             if (method === 'mpesa_stk') {
                 mpesaStkDetails.style.display = 'block';
+                setSectionActive(mpesaStkDetails, true);
                 btnText.innerHTML = paymentConfig.mpesa_stk.text;
             } else if (method === 'pesapal') {
                 pesapalDetails.style.display = 'block';
+                setSectionActive(pesapalDetails, true);
                 btnText.innerHTML = paymentConfig.pesapal.text;
             } else if (method === 'manual_mpesa') {
                 manualMpesaDetails.style.display = 'block';
+                setSectionActive(manualMpesaDetails, true);
                 btnText.innerHTML = paymentConfig.manual_mpesa.text;
             }
             
@@ -266,10 +391,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Highlight default selection
-    document.querySelector('input[name="payment_method"]:checked')
-        .closest('.payment-option')
-        .classList.add('border-primary', 'bg-light');
+    // Highlight default selection and ensure only visible section is validated/enabled
+    const defaultOption = document.querySelector('input[name="payment_method"]:checked');
+    if (defaultOption) {
+        defaultOption.closest('.payment-option').classList.add('border-primary', 'bg-light');
+        // Start with mpesa_stk active by default
+        setSectionActive(mpesaStkDetails, true);
+        setSectionActive(pesapalDetails, false);
+        setSectionActive(manualMpesaDetails, false);
+    }
     
     // Form submission
     document.getElementById('checkout-form').addEventListener('submit', function(e) {

@@ -50,6 +50,44 @@ class PaymentForm(FlaskForm):
         Regexp(r'^[A-Z0-9]+$', message="Invalid payment code format")
     ])
 
+class GuestCheckoutForm(FlaskForm):
+    """Form for guest checkout with all required customer information"""
+    # Customer Information
+    guest_name = StringField('Full Name', validators=[
+        DataRequired(), 
+        Length(min=2, max=100, message="Name must be between 2 and 100 characters")
+    ])
+    guest_email = StringField('Email Address', validators=[
+        DataRequired(), 
+        Email(message="Please enter a valid email address")
+    ])
+    guest_phone = StringField('Phone Number', validators=[
+        DataRequired(), 
+        Length(min=10, max=15, message="Phone number must be between 10 and 15 digits"),
+        Regexp(r'^\+?[0-9]+$', message="Invalid phone number format")
+    ])
+    
+    # Delivery Information
+    delivery_address = TextAreaField('Delivery Address', validators=[
+        DataRequired(), 
+        Length(min=10, max=500, message="Please provide a complete delivery address")
+    ])
+    delivery_city = StringField('City/Town', validators=[
+        DataRequired(), 
+        Length(min=2, max=100, message="Please enter your city or town")
+    ])
+    delivery_instructions = TextAreaField('Delivery Instructions (Optional)', validators=[
+        Optional(), 
+        Length(max=500)
+    ])
+    
+    # Payment fields (for manual M-Pesa)
+    payment_code = StringField('Payment Code', validators=[
+        Optional(),  # Only required for manual M-Pesa
+        Length(min=6, max=12),
+        Regexp(r'^[A-Z0-9]+$', message="Invalid payment code format")
+    ])
+
 class ShoeForm(FlaskForm):
     name = StringField('Name', validators=[InputRequired()])
     price = DecimalField('Price', validators=[InputRequired()])

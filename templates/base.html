@@ -27,18 +27,23 @@
                     <li class="nav-item"><a class="nav-link" href="#!"><i class="bi bi-tag"></i> Sale</a></li>
                 </ul>
                 <ul class="navbar-nav">
+                    <!-- Cart Icon - Visible to all users (authenticated and guests) -->
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="{{ url_for('view_cart') }}" title="Shopping Cart">
+                            <i class="bi bi-cart3"></i>
+                            {% set cart_count = session.cart|length if session.cart else 0 %}
+                            {% if cart_count > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill">
+                                {{ cart_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('wishlist') }}" title="Wishlist">
                                 <i class="bi bi-heart"></i>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('view_cart') }}">
-                                <i class="bi bi-cart3"></i>
-                                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle">
-                                    {{ session.cart|length if session.cart else 0 }}
-                                </span>
                             </a>
                         </li>
                         <li class="nav-item dropdown">

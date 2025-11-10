@@ -117,7 +117,7 @@ app = create_app()
 csrf = CSRFProtect(app)
 
 # Import forms and routes after app creation
-from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeForm, AddToCartForm
+from forms import RegistrationForm, LoginForm, PaymentForm, ShoeForm, ShoeSizeForm, AddToCartForm, GuestCheckoutForm
 # Import models after app creation
 from models import User, Shoe, Order, ShoeSize
 
@@ -392,10 +392,10 @@ def admin():
     # Total Products
     total_products = len(shoes)
     
-    # Low Stock Products (total stock < 5)
-    low_stock_products = [shoe for shoe in shoes if shoe.total_stock < 5 and shoe.total_stock > 0]
+    # Low Stock Products (total stock < 5, including out of stock)
+    low_stock_products = [shoe for shoe in shoes if shoe.total_stock < 5]
     
-    # Out of Stock Products
+    # Out of Stock Products (for count only)
     out_of_stock_products = [shoe for shoe in shoes if shoe.total_stock == 0]
     
     # Total Customers (unique users who placed orders)
@@ -794,31 +794,19 @@ def add_to_cart(shoe_id):
     if not size_inv or size_inv.quantity < 1:
         flash(f"Size {selected_size} of {shoe.name} is out of stock", 'danger')
         return redirect(url_for('index'))
-
-
     
-    # Step 6: Handle authentication
-    if not current_user.is_authenticated:
-        # Store in server session instead of sessionStorage
-        session['pending_cart_item'] = {
-            'shoe_id': shoe_id,
-            'size': selected_size
-        }
-        flash('Please log in to complete adding to cart', 'info')
-        return redirect(url_for('login', next=request.url))
-    
-    # Step 7: Add to cart (authenticated user)
+    # Add to cart (works for both authenticated and guest users)
     cart = session.get('cart', [])
     cart.append({
         'shoe_id': shoe_id,
         'size': selected_size
     })
     session['cart'] = cart
+    session.modified = True  # Explicitly mark session as modified
     flash(f"{shoe.name} (Size {selected_size}) added to cart!", 'success')
     return redirect(request.form.get('next', url_for('index')))
 
 @app.route('/remove_from_cart/<int:index>', methods=['POST'])
-@login_required
 def remove_from_cart(index):
     cart = session.get('cart', [])
     
@@ -842,7 +830,6 @@ def remove_from_cart(index):
     return redirect(url_for('view_cart'))
 
 @app.route('/cart')
-@login_required
 def view_cart():
     cart_items = []
     total = 0
@@ -876,10 +863,28 @@ def view_cart():
     return render_template('cart.html', cart=cart_items, total=total, form=form)
 
 @app.route('/checkout', methods=['GET', 'POST'])
-@login_required
 def checkout():
-    form = PaymentForm()
+    # Check if cart is empty
     cart = session.get('cart', [])
+    if not cart:
+        flash('Your cart is empty. Please add items before checkout.', 'warning')
+        return redirect(url_for('view_cart'))
+    
+    # Determine if user is authenticated or guest
+    is_authenticated = current_user.is_authenticated
+    
+    # Use appropriate form based on authentication status
+    if is_authenticated:
+        form = PaymentForm()
+        guest_form = None
+    else:
+        form = None
+        # Populate form with request data if POST
+        if request.method == 'POST':
+            guest_form = GuestCheckoutForm(request.form)
+        else:
+            guest_form = GuestCheckoutForm()
+    
     cart_items = []
     total = 0
     
@@ -912,7 +917,30 @@ def checkout():
     if request.method == 'POST':
         try:
             payment_method = request.form.get('payment_method', 'cash')
-            phone_number = request.form.get('phone_number', '')
+            
+            # Collect customer information based on authentication status
+            if is_authenticated:
+                # Authenticated user - use existing user data
+                user_id = current_user.id
+                customer_email = current_user.email
+                customer_name = current_user.name
+                phone_number = request.form.get('phone_number', '') or request.form.get('mpesa_phone', '')
+                delivery_address = None
+                delivery_city = None
+                delivery_instructions = None
+            else:
+                # Guest checkout - validate and collect guest form data
+                if not guest_form.validate():
+                    flash_errors(guest_form)
+                    return render_template('checkout.html', form=None, guest_form=guest_form, cart=cart_items, total=total, is_guest=True)
+                
+                user_id = None
+                customer_email = guest_form.guest_email.data
+                customer_name = guest_form.guest_name.data
+                phone_number = guest_form.guest_phone.data
+                delivery_address = guest_form.delivery_address.data
+                delivery_city = guest_form.delivery_city.data
+                delivery_instructions = guest_form.delivery_instructions.data
             
             # Create orders first (with pending payment)
             order_ids = []
@@ -922,14 +950,21 @@ def checkout():
                 
                 # Create order
                 order = Order(
-                    user_id=current_user.id,
+                    user_id=user_id,  # None for guests
                     shoe_id=shoe.id,
                     size=size,
                     phone_number=phone_number,
                     payment_method=payment_method,
                     payment_status='Pending',
                     amount=shoe.price,
-                    status='Pending'
+                    status='Pending',
+                    # Guest checkout fields
+                    guest_name=customer_name if not is_authenticated else None,
+                    guest_email=customer_email if not is_authenticated else None,
+                    guest_phone=phone_number if not is_authenticated else None,
+                    delivery_address=delivery_address,
+                    delivery_city=delivery_city,
+                    delivery_instructions=delivery_instructions
                 )
                 db.session.add(order)
                 db.session.flush()  # Get the order ID
@@ -1017,7 +1052,7 @@ def checkout():
                         description=f"Order #{primary_order_id} - LegitCollections",
                         callback_url=callback_url,
                         notification_id=notification_id,
-                        customer_email=current_user.email,
+                        customer_email=customer_email,
                         customer_phone=phone_number
                     )
                     
@@ -1048,6 +1083,10 @@ def checkout():
                     flash('Please enter M-Pesa transaction code', 'danger')
                     return redirect(url_for('checkout'))
                 
+                # For guests, also update phone number if provided
+                if not is_authenticated:
+                    phone_number = request.form.get('phone_number', phone_number)
+                
                 # Update orders with payment code
                 for order_id in order_ids:
                     order = Order.query.get(order_id)
@@ -1063,7 +1102,13 @@ def checkout():
                 db.session.commit()
                 session.pop('cart', None)
                 flash('Payment submitted! We will verify and process your order shortly.', 'success')
-                return redirect(url_for('user_orders'))
+                
+                # Redirect based on authentication status
+                if is_authenticated:
+                    return redirect(url_for('user_orders'))
+                else:
+                    # Guest users see order confirmation
+                    return redirect(url_for('guest_order_confirmation', order_id=order_ids[0]))
             
             else:
                 # Unknown payment method
@@ -1076,11 +1121,10 @@ def checkout():
             flash(f'Error processing order: {str(e)}', 'danger')
             return redirect(url_for('view_cart'))
     
-    return render_template('checkout.html', form=form, cart=cart_items, total=total)
+    return render_template('checkout.html', form=form, guest_form=guest_form, cart=cart_items, total=total, is_guest=not is_authenticated)
 
 # Pesapal Payment Callbacks
 @app.route('/pesapal/callback')
-@login_required
 def pesapal_callback():
     """Handle return from Pesapal payment page"""
     try:
@@ -1121,7 +1165,13 @@ def pesapal_callback():
                 session.pop('cart', None)
                 
                 flash('Payment successful! Your order is being processed.', 'success')
-                return redirect(url_for('user_orders'))
+                
+                # Redirect based on authentication status
+                if current_user.is_authenticated:
+                    return redirect(url_for('user_orders'))
+                else:
+                    # Guest users see order confirmation
+                    return redirect(url_for('guest_order_confirmation', order_id=orders[0].id))
             else:
                 # Payment failed
                 for order in orders:
@@ -1134,24 +1184,37 @@ def pesapal_callback():
                 return redirect(url_for('view_cart'))
         else:
             flash('Unable to verify payment status. Please contact support.', 'warning')
-            return redirect(url_for('user_orders'))
+            # Redirect based on authentication
+            if current_user.is_authenticated:
+                return redirect(url_for('user_orders'))
+            else:
+                return redirect(url_for('index'))
             
     except Exception as e:
         app.logger.error(f"Pesapal callback error: {str(e)}")
         flash('An error occurred while processing your payment', 'danger')
-        return redirect(url_for('user_orders'))
+        # Redirect based on authentication
+        if current_user.is_authenticated:
+            return redirect(url_for('user_orders'))
+        else:
+            return redirect(url_for('index'))
 
 # M-Pesa Payment Status Page
 @app.route('/payment/mpesa/status/<int:order_id>')
-@login_required
 def mpesa_payment_status(order_id):
     """Show M-Pesa payment status page while waiting for confirmation"""
     order = Order.query.get_or_404(order_id)
     
-    # Verify order belongs to current user
-    if order.user_id != current_user.id:
-        flash('Unauthorized access', 'danger')
-        return redirect(url_for('user_orders'))
+    # Verify order belongs to current user (if authenticated) or is a guest order
+    if current_user.is_authenticated:
+        if order.user_id != current_user.id:
+            flash('Unauthorized access', 'danger')
+            return redirect(url_for('user_orders'))
+    else:
+        # Guest order - verify it has no user_id
+        if order.user_id:
+            flash('Unauthorized access', 'danger')
+            return redirect(url_for('index'))
     
     return render_template('mpesa_status.html', order=order)
 
@@ -1233,14 +1296,18 @@ def mpesa_callback():
 
 # AJAX endpoint to check M-Pesa payment status
 @app.route('/payment/mpesa/check/<int:order_id>')
-@login_required
 def check_mpesa_status(order_id):
     """AJAX endpoint to check if M-Pesa payment has been completed"""
     order = Order.query.get_or_404(order_id)
     
-    # Verify order belongs to current user
-    if order.user_id != current_user.id:
-        return jsonify({'error': 'Unauthorized'}), 403
+    # Verify order belongs to current user (if authenticated) or is a guest order
+    if current_user.is_authenticated:
+        if order.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+    else:
+        # Guest order - verify it has no user_id
+        if order.user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
     
     return jsonify({
         'payment_status': order.payment_status,
@@ -1320,6 +1387,18 @@ def user_orders():
             order.total_price = 0
 
     return render_template('orders.html', orders=orders)
+
+@app.route('/order/guest/confirmation/<int:order_id>')
+def guest_order_confirmation(order_id):
+    """Show order confirmation for guest users"""
+    order = Order.query.get_or_404(order_id)
+    
+    # Verify this is a guest order (no user_id)
+    if order.user_id:
+        flash('This order belongs to a registered user.', 'info')
+        return redirect(url_for('index'))
+    
+    return render_template('guest_order_confirmation.html', order=order)
 
 @app.route('/admin/export/orders')
 @login_required

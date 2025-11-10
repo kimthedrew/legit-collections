@@ -106,9 +106,17 @@ class Order(db.Model):
     __tablename__ = 'orders'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Nullable for guest checkout
     shoe_id = db.Column(db.Integer, db.ForeignKey('shoes.id'), nullable=True)
     size = db.Column(db.String(10), nullable=False)
+    
+    # Guest checkout fields
+    guest_name = db.Column(db.String(100))  # Guest customer name
+    guest_email = db.Column(db.String(120))  # Guest customer email
+    guest_phone = db.Column(db.String(20))  # Guest customer phone
+    delivery_address = db.Column(db.Text)  # Delivery address for guest
+    delivery_city = db.Column(db.String(100))  # City/town
+    delivery_instructions = db.Column(db.Text)  # Delivery instructions
     
     # Payment fields
     payment_method = db.Column(db.String(20), default='Cash')  # M-Pesa, Card, Cash, Bank
@@ -128,6 +136,27 @@ class Order(db.Model):
 
     user = db.relationship('User', backref='orders')
     shoe = db.relationship('Shoe', backref='orders')
+    
+    @property
+    def customer_name(self):
+        """Get customer name (from user or guest)"""
+        if self.user:
+            return self.user.name
+        return self.guest_name or 'Guest'
+    
+    @property
+    def customer_email(self):
+        """Get customer email (from user or guest)"""
+        if self.user:
+            return self.user.email
+        return self.guest_email
+    
+    @property
+    def customer_phone(self):
+        """Get customer phone (from user or guest)"""
+        if self.user:
+            return self.phone_number or self.user.address
+        return self.guest_phone or self.phone_number
 
 
 class ShoeSize(db.Model):

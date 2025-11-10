@@ -204,11 +204,12 @@
                                 </button>
                             </div>
                                 
-                                <!-- Login reminder for unauthenticated users -->
+                                <!-- Guest checkout reminder -->
                                 {% if not current_user.is_authenticated %}
                                 <div class="mt-2 text-center">
                                     <small class="text-muted">
-                                        You need to <a href="{{ url_for('login') }}">log in</a> to add to cart
+                                        <i class="bi bi-info-circle"></i> You can checkout as a guest or 
+                                        <a href="{{ url_for('login') }}">log in</a> for faster checkout
                                     </small>
                                 </div>
                                 {% endif %}
@@ -335,33 +336,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const productCards = document.querySelectorAll('.product-card');
     const productsContainer = document.getElementById('productsContainer');
     
-    // Add to cart form handling
+    // Add to cart form handling - allow both authenticated and guest users
     const addToCartForms = document.querySelectorAll('form[action*="/add_to_cart"]');
     
     addToCartForms.forEach(form => {
         form.addEventListener('submit', function(e) {
-            // Check if user is authenticated using body class
-            const isAuthenticated = document.body.classList.contains('user-authenticated');
-            
-            if (!isAuthenticated) {
-                e.preventDefault();
+            // Allow form submission for both authenticated and guest users
+            // Just add loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                const originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Adding...';
                 
-                // Get form data
-                const formData = new FormData(this);
-                const size = formData.get('size');
-                const shoeId = this.action.split('/').filter(segment => segment).pop();
-                
-                // Disable button during redirect
-                const submitBtn = this.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Redirecting...';
-                }
-                
-                // Redirect to login
-                const nextUrl = new URL(window.location.href);
-                window.location.href = "{{ url_for('login') }}?next=" + 
-                    encodeURIComponent(nextUrl.pathname + nextUrl.search);
+                // Re-enable if form submission fails
+                setTimeout(() => {
+                    if (submitBtn.disabled) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalHtml;
+                    }
+                }, 5000);
             }
         });
     });

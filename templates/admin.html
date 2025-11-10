@@ -358,30 +358,30 @@
                                 <h6 class="mb-0">
                                     <i class="bi bi-exclamation-triangle text-warning"></i> Inventory Alerts
                                 </h6>
-                                <small class="text-muted">Stock < 5 units</small>
+                                <small class="text-muted">Stock ≤ 5 units</small>
                             </div>
                             <div class="card-body">
-                                {% if analytics.low_stock_products or analytics.out_of_stock_count > 0 %}
+                                {% if analytics.low_stock_products %}
                                 <div class="list-group list-group-flush">
-                                    {% for shoe in analytics.low_stock_products[:5] %}
+                                    {% for shoe in analytics.low_stock_products %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                                         <div>
                                             <strong>{{ shoe.name }}</strong>
                                             <br>
                                             <small class="text-muted">ID: #{{ shoe.id }}</small>
                                         </div>
+                                        {% if shoe.total_stock == 0 %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle"></i> OUT OF STOCK
+                                        </span>
+                                        {% else %}
                                         <span class="badge bg-warning text-dark">
                                             {{ shoe.total_stock }} left
                                         </span>
+                                        {% endif %}
                                     </div>
                                     {% endfor %}
                                 </div>
-                                {% if analytics.out_of_stock_count > 0 %}
-                                <div class="alert alert-danger small mt-3 mb-0">
-                                    <i class="bi bi-x-circle"></i> 
-                                    <strong>{{ analytics.out_of_stock_count }}</strong> product(s) completely out of stock
-                                </div>
-                                {% endif %}
                                 {% else %}
                                 <div class="text-center py-4">
                                     <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
@@ -680,24 +680,44 @@
                                         <tr>
                                             <td><strong>#{{ order.id }}</strong></td>
                                             <td>
-                                                {{ order.user.name }}
-                                                <br>
-                                                <small class="text-muted">{{ order.user.email }}</small>
+                                                {% if order.user %}
+                                                    {{ order.user.name }}
+                                                    <br>
+                                                    <small class="text-muted">{{ order.user.email }}</small>
+                                                {% else %}
+                                                    <strong>{{ order.guest_name or 'Guest' }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">{{ order.guest_email or 'N/A' }}</small>
+                                                    <br>
+                                                    <span class="badge bg-secondary">Guest</span>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 {% if order.phone_number %}
                                                     <small>{{ order.phone_number }}</small>
+                                                {% elif order.guest_phone %}
+                                                    <small>{{ order.guest_phone }}</small>
                                                 {% else %}
                                                     <span class="text-muted">N/A</span>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if order.user.address %}
-                                                    <small class="text-muted" title="{{ order.user.address }}">
-                                                        <i class="bi bi-geo-alt"></i> {{ order.user.address[:30] }}{% if order.user.address|length > 30 %}...{% endif %}
-                                                    </small>
+                                                {% if order.user %}
+                                                    {% if order.user.address %}
+                                                        <small class="text-muted" title="{{ order.user.address }}">
+                                                            <i class="bi bi-geo-alt"></i> {{ order.user.address[:30] }}{% if order.user.address|length > 30 %}...{% endif %}
+                                                        </small>
+                                                    {% else %}
+                                                        <span class="text-muted">Not provided</span>
+                                                    {% endif %}
                                                 {% else %}
-                                                    <span class="text-muted">Not provided</span>
+                                                    {% if order.delivery_address %}
+                                                        <small class="text-muted" title="{{ order.delivery_address }}">
+                                                            <i class="bi bi-geo-alt"></i> {{ order.delivery_city or 'N/A' }}: {{ order.delivery_address[:30] }}{% if order.delivery_address|length > 30 %}...{% endif %}
+                                                        </small>
+                                                    {% else %}
+                                                        <span class="text-muted">Not provided</span>
+                                                    {% endif %}
                                                 {% endif %}
                                             </td>
                                             <td>{{ order.shoe.name if order.shoe else 'N/A' }}</td>
