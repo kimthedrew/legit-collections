@@ -544,14 +544,14 @@ def add_shoe():
 
 
 
-@app.route('/admin/shoe/<int:shoe_id>/sizes', methods=['GET', 'POST'])
+@app.route('/admin/shoe/<int:shoe_id>/sizes', methods=['GET'])
 @login_required
 def manage_shoe_sizes(shoe_id):
     if not current_user.is_admin:
         return redirect(url_for('index'))
-    
+
     shoe = Shoe.query.get_or_404(shoe_id)
-    
+
     # Check if limited admin can manage this shoe
     try:
         if current_user.is_limited_admin() and getattr(shoe, 'created_by', None) != current_user.id:
@@ -559,37 +559,79 @@ def manage_shoe_sizes(shoe_id):
             return redirect(url_for('admin'))
     except Exception as e:
         app.logger.error(f"Access control check failed: {str(e)}")
-        # Continue without access control if there's an error
-    form = ShoeSizeForm()
-    
-    if form.validate_on_submit():
-        size = ShoeSize(
-            shoe_id=shoe_id,
-            size=form.size.data,
-            quantity=form.quantity.data
-        )
-        db.session.add(size)
+
+    return render_template('manage_sizes.html', shoe=shoe)
+
+@app.route('/admin/shoe/<int:shoe_id>/sizes/update', methods=['POST'])
+@login_required
+def update_shoe_sizes(shoe_id):
+    if not current_user.is_admin:
+        return redirect(url_for('index'))
+
+    shoe = Shoe.query.get_or_404(shoe_id)
+
+    # Check if limited admin can manage this shoe
+    try:
+        if current_user.is_limited_admin() and getattr(shoe, 'created_by', None) != current_user.id:
+            flash('You can only manage your own products.', 'danger')
+            return redirect(url_for('admin'))
+    except Exception as e:
+        app.logger.error(f"Access control check failed: {str(e)}")
+
+    # Get selected sizes from checkboxes
+    selected_sizes = request.form.getlist('sizes')
+
+    # Get custom sizes if any
+    custom_sizes_str = request.form.get('custom_sizes', '').strip()
+    if custom_sizes_str:
+        custom_sizes = [s.strip() for s in custom_sizes_str.split(',') if s.strip()]
+        selected_sizes.extend(custom_sizes)
+
+    # Get all existing sizes for this shoe
+    existing_sizes = {size.size: size for size in shoe.sizes}
+
+    # Update or create sizes
+    for size_value in selected_sizes:
+        if size_value in existing_sizes:
+            # Update existing size to in stock (quantity = 1)
+            existing_sizes[size_value].quantity = 1
+        else:
+            # Create new size entry
+            new_size = ShoeSize(shoe_id=shoe_id, size=size_value, quantity=1)
+            db.session.add(new_size)
+
+    # Mark unselected sizes as out of stock (quantity = 0)
+    for size_value, size_obj in existing_sizes.items():
+        if size_value not in selected_sizes:
+            size_obj.quantity = 0
+
+    try:
         db.session.commit()
-        flash('Size added successfully!', 'success')
-        return redirect(url_for('manage_shoe_sizes', shoe_id=shoe_id))
-    
-    return render_template('manage_sizes.html', shoe=shoe, form=form)
+        cache.clear()
+        flash('Sizes updated successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating sizes: {str(e)}', 'danger')
+
+    return redirect(url_for('admin'))
 
 @app.route('/admin/delete_size/<int:size_id>', methods=['POST'])
 @login_required
 def delete_size(size_id):
     if not current_user.is_admin:
         return redirect(url_for('index'))
-    
+
     size = ShoeSize.query.get_or_404(size_id)
     shoe_id = size.shoe_id
-    
+
     # Check if limited admin can manage this shoe
     if current_user.is_limited_admin() and size.shoe.created_by != current_user.id:
         flash('You can only manage your own products.', 'danger')
         return redirect(url_for('admin'))
+
     db.session.delete(size)
     db.session.commit()
+    cache.clear()
     flash('Size deleted successfully!', 'success')
     return redirect(url_for('manage_shoe_sizes', shoe_id=shoe_id))
 
@@ -704,7 +746,7 @@ def create_limited_admin():
             address=address,
             is_admin=True,
             admin_type='limited_admin',
-            product_limit=3
+            product_limit=5
         )
         
         try:
@@ -724,14 +766,43 @@ def verify_payment(order_id):
     if current_user.is_admin:
         order = Order.query.get(order_id)
         admin_code = request.form.get('admin_code')
-        
+
         if order.payment_code == admin_code:
             order.status = 'Verified'
+            order.payment_status = 'Completed'
             db.session.commit()
             flash('Payment verified! Order can be shipped', 'success')
         else:
             flash('Payment codes do not match', 'danger')
-    
+
+    return redirect(url_for('admin'))
+
+@app.route('/admin/update_order_status/<int:order_id>', methods=['POST'])
+@login_required
+def update_order_status(order_id):
+    if not current_user.is_admin:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('index'))
+
+    order = Order.query.get_or_404(order_id)
+
+    # Check if limited admin can manage this order
+    if current_user.is_limited_admin():
+        if order.shoe and order.shoe.created_by != current_user.id:
+            flash('You can only manage orders for your own products.', 'danger')
+            return redirect(url_for('admin'))
+
+    new_status = request.form.get('order_status')
+    valid_statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']
+
+    if new_status not in valid_statuses:
+        flash('Invalid order status.', 'danger')
+        return redirect(url_for('admin'))
+
+    order.status = new_status
+    db.session.commit()
+    flash(f'Order #{order_id} status updated to {new_status}', 'success')
+
     return redirect(url_for('admin'))
 
 # @app.route('/add_to_cart/<int:shoe_id>', methods=['POST'])
@@ -999,7 +1070,7 @@ def checkout():
                         phone_number=formatted_phone,
                         amount=total,
                         account_reference=f"ORDER-{primary_order_id}",
-                        transaction_desc=f"LegitCollections Order #{primary_order_id}",
+                        transaction_desc=f"Country Hub Collections Order #{primary_order_id}",
                         callback_url=callback_url
                     )
                     
@@ -1049,7 +1120,7 @@ def checkout():
                     result = initiate_payment(
                         order_id=primary_order_id,
                         amount=total,
-                        description=f"Order #{primary_order_id} - LegitCollections",
+                        description=f"Order #{primary_order_id} - Country Hub Collections",
                         callback_url=callback_url,
                         notification_id=notification_id,
                         customer_email=customer_email,

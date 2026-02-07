@@ -13,77 +13,78 @@
             </div>
             {% endif %}
             
-            <div class="row g-4">
-                <!-- Customer & Delivery Information (for guests) -->
-                {% if is_guest %}
-                <div class="col-12">
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-body">
-                            <h4 class="card-title mb-3"><i class="bi bi-person-circle"></i> Customer Information</h4>
-                            {% if guest_form %}
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    {{ guest_form.guest_name.label(class="form-label") }}
-                                    {{ guest_form.guest_name(class="form-control", placeholder="Enter your full name") }}
-                                    {% if guest_form.guest_name.errors %}
-                                        <div class="text-danger small">{{ guest_form.guest_name.errors[0] }}</div>
-                                    {% endif %}
+            <!-- Single form wrapping all checkout fields -->
+            <form method="POST" id="checkout-form">
+                {% if form %}
+                    {{ form.hidden_tag() }}
+                {% elif guest_form %}
+                    {{ guest_form.hidden_tag() }}
+                {% endif %}
+
+                <div class="row g-4">
+                    <!-- Customer & Delivery Information (for guests) -->
+                    {% if is_guest %}
+                    <div class="col-12">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <h4 class="card-title mb-3"><i class="bi bi-person-circle"></i> Customer Information</h4>
+                                {% if guest_form %}
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        {{ guest_form.guest_name.label(class="form-label") }}
+                                        {{ guest_form.guest_name(class="form-control", placeholder="Enter your full name") }}
+                                        {% if guest_form.guest_name.errors %}
+                                            <div class="text-danger small">{{ guest_form.guest_name.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ guest_form.guest_email.label(class="form-label") }}
+                                        {{ guest_form.guest_email(class="form-control", placeholder="your.email@example.com") }}
+                                        {% if guest_form.guest_email.errors %}
+                                            <div class="text-danger small">{{ guest_form.guest_email.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ guest_form.guest_phone.label(class="form-label") }}
+                                        {{ guest_form.guest_phone(class="form-control", placeholder="254712345678") }}
+                                        <small class="text-muted">Format: 254XXXXXXXXX</small>
+                                        {% if guest_form.guest_phone.errors %}
+                                            <div class="text-danger small">{{ guest_form.guest_phone.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ guest_form.delivery_city.label(class="form-label") }}
+                                        {{ guest_form.delivery_city(class="form-control", placeholder="Nairobi") }}
+                                        {% if guest_form.delivery_city.errors %}
+                                            <div class="text-danger small">{{ guest_form.delivery_city.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-12">
+                                        {{ guest_form.delivery_address.label(class="form-label") }}
+                                        {{ guest_form.delivery_address(class="form-control", rows="3", placeholder="Enter your complete delivery address") }}
+                                        {% if guest_form.delivery_address.errors %}
+                                            <div class="text-danger small">{{ guest_form.delivery_address.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-12">
+                                        {{ guest_form.delivery_instructions.label(class="form-label") }}
+                                        {{ guest_form.delivery_instructions(class="form-control", rows="2", placeholder="Optional: Any special delivery instructions") }}
+                                        {% if guest_form.delivery_instructions.errors %}
+                                            <div class="text-danger small">{{ guest_form.delivery_instructions.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    {{ guest_form.guest_email.label(class="form-label") }}
-                                    {{ guest_form.guest_email(class="form-control", placeholder="your.email@example.com") }}
-                                    {% if guest_form.guest_email.errors %}
-                                        <div class="text-danger small">{{ guest_form.guest_email.errors[0] }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    {{ guest_form.guest_phone.label(class="form-label") }}
-                                    {{ guest_form.guest_phone(class="form-control", placeholder="254712345678") }}
-                                    <small class="text-muted">Format: 254XXXXXXXXX</small>
-                                    {% if guest_form.guest_phone.errors %}
-                                        <div class="text-danger small">{{ guest_form.guest_phone.errors[0] }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    {{ guest_form.delivery_city.label(class="form-label") }}
-                                    {{ guest_form.delivery_city(class="form-control", placeholder="Nairobi") }}
-                                    {% if guest_form.delivery_city.errors %}
-                                        <div class="text-danger small">{{ guest_form.delivery_city.errors[0] }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-12">
-                                    {{ guest_form.delivery_address.label(class="form-label") }}
-                                    {{ guest_form.delivery_address(class="form-control", rows="3", placeholder="Enter your complete delivery address") }}
-                                    {% if guest_form.delivery_address.errors %}
-                                        <div class="text-danger small">{{ guest_form.delivery_address.errors[0] }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-12">
-                                    {{ guest_form.delivery_instructions.label(class="form-label") }}
-                                    {{ guest_form.delivery_instructions(class="form-control", rows="2", placeholder="Optional: Any special delivery instructions") }}
-                                    {% if guest_form.delivery_instructions.errors %}
-                                        <div class="text-danger small">{{ guest_form.delivery_instructions.errors[0] }}</div>
-                                    {% endif %}
-                                </div>
+                                {% endif %}
                             </div>
-                            {% endif %}
                         </div>
                     </div>
-                </div>
-                {% endif %}
-                
-                <!-- Payment Section -->
-                <div class="col-md-6">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h4 class="card-title mb-3"><i class="bi bi-credit-card"></i> Payment Method</h4>
-                            
-                            <form method="POST" id="checkout-form">
-                                {% if form %}
-                                    {{ form.hidden_tag() }}
-                                {% else %}
-                                    {{ guest_form.hidden_tag() }}
-                                {% endif %}
+                    {% endif %}
+
+                    <!-- Payment Section -->
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h4 class="card-title mb-3"><i class="bi bi-credit-card"></i> Payment Method</h4>
                                 
                                 <!-- Payment Method Selection -->
                                 <div class="mb-4">
@@ -261,39 +262,39 @@
                                         <i class="bi bi-shield-check"></i> Secure payment powered by Pesapal
                                     </small>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Order Summary -->
-                <div class="col-md-6">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h4 class="card-title mb-3"><i class="bi bi-bag-check"></i> Order Summary</h4>
-                            
-                            <div class="list-group mb-3">
-                                {% for shoe in cart %}
-                                <div class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">{{ shoe.name }}</h6>
-                                            <small class="text-muted">Size: {{ shoe.size }}</small>
+                    <!-- Order Summary -->
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h4 class="card-title mb-3"><i class="bi bi-bag-check"></i> Order Summary</h4>
+
+                                <div class="list-group mb-3">
+                                    {% for shoe in cart %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">{{ shoe.name }}</h6>
+                                                <small class="text-muted">Size: {{ shoe.size }}</small>
+                                            </div>
+                                            <span class="text-nowrap">Ksh{{ "%.2f"|format(shoe.price) }}</span>
                                         </div>
-                                        <span class="text-nowrap">Ksh{{ "%.2f"|format(shoe.price) }}</span>
                                     </div>
+                                    {% endfor %}
                                 </div>
-                                {% endfor %}
-                            </div>
-                            
-                            <div class="d-flex justify-content-between fw-bold fs-5">
-                                <span>Total:</span>
-                                <span>Ksh{{ "%.2f"|format(total) }}</span>
+
+                                <div class="d-flex justify-content-between fw-bold fs-5">
+                                    <span>Total:</span>
+                                    <span>Ksh{{ "%.2f"|format(total) }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>

@@ -11,7 +11,7 @@ def init_mail(app):
     app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'LegitCollections <noreply@legitcollections.com>')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'Country Hub Collections <noreply@countryhubcollections.com>')
     
     mail.init_app(app)
     return mail
@@ -23,7 +23,7 @@ def send_order_confirmation(order):
             current_app.logger.warning("Email not configured, skipping order confirmation email")
             return False
         
-        subject = f"Order Confirmation #{order.id} - LegitCollections"
+        subject = f"Order Confirmation #{order.id} - Country Hub Collections"
         
         # Email body (HTML)
         html_body = f"""
@@ -80,10 +80,10 @@ def send_order_confirmation(order):
                 </div>
                 
                 <div class="footer">
-                    <p>© 2025 LegitCollections. All rights reserved.</p>
+                    <p>© 2025 Country Hub Collections. All rights reserved.</p>
                     <p>
-                        <a href="https://www.instagram.com/legitcollectionske">Instagram</a> | 
-                        <a href="#">Privacy Policy</a> | 
+                        <a href="#">Instagram</a> |
+                        <a href="#">Privacy Policy</a> |
                         <a href="#">Terms of Service</a>
                     </p>
                 </div>
@@ -188,7 +188,7 @@ def send_order_status_update(order, new_status):
                 <p>Hi {order.user.name},</p>
                 <p>Your order #{order.id} status has been updated to: <strong>{new_status}</strong></p>
                 <p>{status_messages.get(new_status, '')}</p>
-                <p>Best regards,<br>LegitCollections Team</p>
+                <p>Best regards,<br>Country Hub Collections Team</p>
             </div>
         </body>
         </html>

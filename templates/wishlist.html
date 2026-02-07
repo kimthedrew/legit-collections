@@ -51,7 +51,7 @@
                 </form>
                 
                 <!-- Product Image -->
-                <a href="{{ url_for('add_to_cart', shoe_id=item.shoe.id) }}">
+                <a href="{{ url_for('product_detail', shoe_id=item.shoe.id) }}">
                     <img src="{{ item.shoe.image_url }}" 
                          class="card-img-top" 
                          alt="{{ item.shoe.name }}"
@@ -97,9 +97,20 @@
                     <!-- Action Buttons -->
                     <div class="d-grid gap-2">
                         {% if item.shoe.total_stock > 0 %}
-                        <a href="{{ url_for('add_to_cart', shoe_id=item.shoe.id) }}" class="btn btn-primary">
-                            <i class="bi bi-cart-plus"></i> Add to Cart
+                        {% set available_sizes = item.shoe.sizes|selectattr('quantity', 'gt', 0)|list %}
+                        {% if available_sizes %}
+                        <form method="POST" action="{{ url_for('add_to_cart', shoe_id=item.shoe.id) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="size" value="{{ available_sizes[0].size }}">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-cart-plus"></i> Add to Cart
+                            </button>
+                        </form>
+                        {% else %}
+                        <a href="{{ url_for('product_detail', shoe_id=item.shoe.id) }}" class="btn btn-primary">
+                            <i class="bi bi-eye"></i> View Product
                         </a>
+                        {% endif %}
                         {% else %}
                         <button class="btn btn-secondary" disabled>
                             <i class="bi bi-x-circle"></i> Out of Stock

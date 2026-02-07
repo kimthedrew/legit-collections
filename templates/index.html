@@ -96,7 +96,7 @@
 
     <div class="row">
         <div class="col-12 mb-4 text-center">
-            <h1 class="display-5">Legit Collections</h1>
+            <h1 class="display-5">Country Hub Collections</h1>
             <p class="lead">Discover the latest additions to our collection</p>
         </div>
     </div>
@@ -275,9 +275,20 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="h5 text-danger mb-0">Ksh{{ "%.2f"|format(shoe.price) }}</span>
                         {% if shoe.total_stock > 0 %}
-                            <a href="{{ url_for('add_to_cart', shoe_id=shoe.id) }}" class="btn btn-sm btn-primary">
-                                <i class="bi bi-cart-plus"></i>
+                            {% set available_sizes = shoe.sizes|selectattr('quantity', 'gt', 0)|list %}
+                            {% if available_sizes %}
+                            <form method="POST" action="{{ url_for('add_to_cart', shoe_id=shoe.id) }}" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="size" value="{{ available_sizes[0].size }}">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-cart-plus"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <a href="{{ url_for('product_detail', shoe_id=shoe.id) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-eye"></i> View
                             </a>
+                            {% endif %}
                         {% else %}
                             <span class="badge bg-secondary">Sold Out</span>
                         {% endif %}
